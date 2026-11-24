@@ -1,4 +1,4 @@
-# 週次レポートの市況の設定（notebooks/01_market_data.ipynb・04_report.ipynb）
+# 週次レポートの市況の設定（em-market market / report）
 # 基準日は CLI の --date で指定する（省略時は今日）。期間はすべて基準日からの相対で決まる
 
 # 基準日（--date, 通常は水曜の実行日）の扱い

@@ -1,8 +1,8 @@
 """ファクターパフォーマンス: data/raw から計算し、結果の保存・読み込みと作図を行う。
 
-計算と作図は別々の notebook で実行する:
-    notebooks/03_factor_performance.ipynb   # 計算 → data/processed/<日付>/factor/
-    notebooks/04_report.ipynb               # 作図 → data/processed/<日付>/report/
+計算と作図は別々のコマンドで実行する (設定は configs/cli/factor.yaml, report.yaml):
+    uv run em-market factor   # 計算 → data/processed/<日付>/factor/
+    uv run em-market report   # 作図 → data/processed/<日付>/report/
 """
 
 import json
@@ -143,7 +143,7 @@ def build_factor_results(
     if nam_total.index.max() < to_ymd:
         log(
             f"data/raw のデータは {nam_total.index.max()} までです。"
-            "続きは notebooks/02_factor_data.ipynb で取得してください"
+            "続きは em-market factor-data で取得してください"
         )
 
     log("common ファクター")

@@ -10,7 +10,7 @@ CONFIG_DIR = PROJECT_ROOT / "configs"
 TEMPLATE_DIR = PROJECT_ROOT / "templates"
 
 DATA_DIR = PROJECT_ROOT / "data"
-RAW_DIR = DATA_DIR / "raw"  # 社内 DB・ITAAP から取得したデータ (02_factor_data.ipynb)
+RAW_DIR = DATA_DIR / "raw"  # 社内 DB・ITAAP から取得したデータ (em-market factor-data)
 PROCESSED_DIR = DATA_DIR / "processed"  # 基準日ごとの加工データとレポート
 
 ProcessedKind = Literal["market", "factor", "report"]

@@ -14,32 +14,39 @@ cp .env.example .env   # LSEG_APP_KEY / LSEG_USERNAME / LSEG_PASSWORD を記入 
 
 `lseg-data` が pandas 3 に未対応のため、pandas は 2.x に固定している。
 
-## データの更新 (notebook)
+## データの更新 (CLI)
 
-`notebooks/` の 4 つの notebook を順に実行する。どれも先頭のパラメータのセルを書き換えてから、すべて実行する。
-日付は `20261125` のような YYYYMMDD で指定する。
+4 つのコマンドを順に実行する。設定は `configs/cli/<コマンド>.yaml` に書く (`--config` で別のファイルも指定できる)。
+日付は YYYYMMDD で書き、`null` なら既定値 (保存先は今日、終了日はその前日など。各 yaml のコメントを参照) を使う。
 
-| notebook | 内容 | 保存先 |
-|---|---|---|
-| `01_market_data.ipynb` | LSEG から市況データを取得 | `data/processed/<output_ymd>/market/` |
-| `02_factor_data.ipynb` | 社内 DB・ITAAP から取得 (社内環境のみ) | `data/raw/` |
-| `03_factor_performance.ipynb` | NAM・common ファクターのリターンと IC・TC を計算 | `data/processed/<output_ymd>/factor/` |
-| `04_report.ipynb` | 01・03 の結果から図・表・パワポを作り、図を表示 | `data/processed/<report_ymd>/report/` |
+```bash
+uv run em-market market        # 1. LSEG から市況データを取得          → data/processed/<output_ymd>/market/
+uv run em-market factor-data   # 2. 社内 DB・ITAAP からデータを取得     → data/raw/ (社内環境のみ)
+uv run em-market factor        # 3. ファクターのリターンと IC・TC を計算 → data/processed/<output_ymd>/factor/
+uv run em-market report        # 4. 図・表・パワポを作成                 → data/processed/<report_ymd>/report/
+```
 
-- **01**: 指数・株価・利回り・コモディティを `from_ymd` から `to_ymd` まで取得する。コモディティの図に 3 か月分使う。決算日と経済指標は取得した時点の予定を取る。
-- **02**: 直近の月末営業日のスコアも使うので、`from_ymd` を含む月の前月末から取得する。保存済みの日は取り直さない (`overwrite = True` で取り直す)。
-- **03**: `from_ymd` から `to_ymd` で計算する。図の推移もこの日から描くので、IC の 20 日移動平均のため長めに取る。スコアの種類 (`score_freq`) とリバランス日 (`reb_ymd`) もここで指定する。
-- **04**: 強調する期間 (`period_from_ymd`、`period_to_ymd`) は、省略時は `report_ymd` の前日を終点とする 1 週間 (`configs/weekly_report.yaml` の `data_lag_days`・`lookback_days`)。決算・経済指標のカレンダーは `report_ymd` 以降。market と factor の片方しかなければ、ある方だけ作る。市況の図は `configs/weekly_slides.yaml` に従って `templates/example.pptx` に差し込み、`EM週次市況_<日付>.pptx` も作る。
+各コマンドは別ファイル (`src/em_market/cli/`) で、`uv run python -m em_market.cli.factor` のようにモジュールとしても実行できる。
 
-notebook を git に入れるときは、実行結果を消してからコミットする。
+| 設定ファイル | 主な項目 |
+|---|---|
+| `configs/cli/market.yaml` | `output_ymd`、`from_ymd`、`to_ymd` (時系列の取得期間。コモディティの図に 3 か月分使う) |
+| `configs/cli/factor_data.yaml` | `from_ymd`、`to_ymd`、`overwrite` |
+| `configs/cli/factor.yaml` | `output_ymd`、`from_ymd`、`to_ymd` (計算期間。図の推移もこの日から)、`score_freq`、`reb_ymd` |
+| `configs/cli/report.yaml` | `report_ymd`、`period_from_ymd`、`period_to_ymd` (強調する期間)、`make_slides` |
+
+- **market**: 指数・株価・利回り・コモディティを `from_ymd` から `to_ymd` まで取得する。決算日と経済指標は取得した時点の予定を取る。
+- **factor-data**: 直近の月末営業日のスコアも使うので、`from_ymd` を含む月の前月末から取得する。保存済みの日は取り直さない (`overwrite: true` で取り直す)。
+- **report**: 強調する期間は、省略時は `report_ymd` の前日を終点とする 1 週間 (`configs/weekly_report.yaml` の `data_lag_days`・`lookback_days`)。決算・経済指標のカレンダーは `report_ymd` 以降。market と factor の片方しかなければ、ある方だけ作る。市況の図は `configs/weekly_slides.yaml` に従って `templates/example.pptx` に差し込み、`EM週次市況_<日付>.pptx` も作る。
 
 ## データとファイルの置き場所
 
 ```
 configs/
+  cli/                     CLI の各コマンドの設定 (market, factor_data, factor, report)
   universe.yaml            LSEG の取得対象 (各国指数・セクター・国債・コモディティ)
   econ_indicators.yaml     経済指標カレンダーの対象
-  weekly_report.yaml       週次レポートのパラメータ (期間、フィルターなど)
+  weekly_report.yaml       週次レポートのパラメータ (期間、フィルター、コモディティの表示月数など)
   weekly_slides.yaml       パワポに差し込む図の対応
 data/                      (git 管理外)
   raw/                     社内データ (ai, bd, bm, port, rtn, srtn, common, calendar.csv)。
@@ -49,13 +56,13 @@ data/                      (git 管理外)
     factor/                ファクターのリターン、IC・TC (CSV) と計算期間など (meta.json)
     report/                図 (PNG)、表 (CSV)、パワポ
 templates/example.pptx     週次レポートのパワポのテンプレート (git 管理外)
-notebooks/                 データ更新の notebook (01〜04)
 ```
 
 ## コード構成
 
 ```
 src/em_market/
+  cli/            CLI。app.py がコマンドの一覧、各コマンドは market / factor_data / factor / report.py
   paths.py        configs/, data/, templates/ の場所
   const.py        ファクター・国などの定数
   dates.py        日付の共通定義 (週次の期間など)

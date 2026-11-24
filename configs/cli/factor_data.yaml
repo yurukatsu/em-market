@@ -1,0 +1,7 @@
+# em-market factor-data: 社内 DB・ITAAP から取得し、data/raw/ に保存する (社内環境のみ)
+# 日付は YYYYMMDD。null なら括弧内の既定値
+# 直近の月末営業日のスコアも使うので、from_ymd を含む月の前月末から取得する
+
+from_ymd: null    # 取得開始日 (to_ymd の年の 1 月 1 日)
+to_ymd: null      # 取得終了日 (昨日)
+overwrite: false  # true なら保存済みの日も取り直す

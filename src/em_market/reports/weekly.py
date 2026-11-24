@@ -1,8 +1,8 @@
 """週次レポート（市況）: LSEG から取得したデータから、PNG（PowerPoint 貼り付け用）と CSV を出力する。
 
-取得と作図は別々の notebook で実行する:
-    notebooks/01_market_data.ipynb   # 取得 → data/processed/<日付>/market/
-    notebooks/04_report.ipynb        # 作図 → data/processed/<日付>/report/
+取得と作図は別々のコマンドで実行する (設定は configs/cli/market.yaml, report.yaml):
+    uv run em-market market   # 取得 → data/processed/<日付>/market/
+    uv run em-market report   # 作図 → data/processed/<日付>/report/
 """
 
 from collections.abc import Callable
