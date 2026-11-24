@@ -36,7 +36,7 @@ uv run em-market report        # 4. 1 と 3 の図をパワポに貼る (図は�
 |---|---|
 | `configs/cli/market.yaml` | `output_ymd`、`fetch`、`from_ymd`・`to_ymd` (時系列の取得期間。コモディティの図に 3 か月分使う)、`period_from_ymd`・`period_to_ymd` (強調する期間) |
 | `configs/cli/factor_data.yaml` | `from_ymd`、`to_ymd`、`overwrite` |
-| `configs/cli/factor.yaml` | `output_ymd`、`from_ymd`・`to_ymd` (計算期間。図の推移もこの日から)、`score_freq`、`reb_ymd`、`period_from_ymd`・`period_to_ymd` (強調する期間)、`ic_from_ymd` (IC・TC・リバランス相関の図の表示開始日)、`ic_font_scale` |
+| `configs/cli/factor.yaml` | `output_ymd`、`from_ymd`・`to_ymd` (計算期間)、`score_freq`、`reb_ymd`、`period_from_ymd`・`period_to_ymd` (強調する期間)、`return_from_ymd`・`ic_from_ymd` (ファクターリターンの Cumulative と IC・TC・リバランス相関の図の表示開始日)、`ic_font_scale` |
 | `configs/cli/report.yaml` | `report_ymd` |
 
 - **強調する期間**: 省略時は `output_ymd` の前日を終点とする 1 週間 (`configs/weekly_report.yaml` の `data_lag_days`・`lookback_days`)。市況のリターンはその前日の値を基準にする。

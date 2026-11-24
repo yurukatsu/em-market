@@ -5,11 +5,12 @@
 # 日付は YYYYMMDD。null なら括弧内の既定値
 
 output_ymd: null       # 保存先の日付 (今日)
-from_ymd: null         # 計算開始日 (to_ymd の年の 1 月 1 日)。図の推移もこの日から描く。IC の 20 日移動平均のため長めに取る
+from_ymd: null         # 計算開始日 (to_ymd の年の 1 月 1 日)。IC の 20 日移動平均のため長めに取る
 to_ymd: null           # 計算終了日 (output_ymd の前日)
 score_freq: monthly    # NAM のスコア: monthly (直近の月末) / daily (当日)。IC・TC にも同じスコアを使う
 reb_ymd: null          # リバランス日。この日以降の日次スコアでリバランス相関を計算する。null なら計算しない
 period_from_ymd: null  # 図で強調する期間の最初の日 (output_ymd の前日を終点とする 1 週間)
 period_to_ymd: null    # 図で強調する期間の最後の日 (output_ymd の前日)
+return_from_ymd: null  # ファクターリターンの図の Cumulative (長期の推移) を描き始める日 (from_ymd)。累積はこの日を 0 とする
 ic_from_ymd: null      # IC・TC・リバランス相関の図を描き始める日 (from_ymd)。20 日移動平均はこれより前の値も使う
 ic_font_scale: 1.5     # IC・TC・リバランス相関の図の文字の倍率

@@ -43,6 +43,7 @@ class FactorConfig(CliConfig):
     reb_ymd: int | None = None
     period_from_ymd: int | None = None
     period_to_ymd: int | None = None
+    return_from_ymd: int | None = None
     ic_from_ymd: int | None = None
     ic_font_scale: float = 1.5
 
@@ -65,6 +66,16 @@ def main(
     period_from, period_to = highlight_period(
         output_date, cfg.period_from_ymd, cfg.period_to_ymd
     )
+    # 図の表示開始日は、計算の前に確かめる (計算や図の作り直しを無駄にしないように)
+    for name, ymd in (
+        ("return_from_ymd", cfg.return_from_ymd),
+        ("ic_from_ymd", cfg.ic_from_ymd),
+    ):
+        if ymd is not None and not start <= to_date(ymd, start) <= period_from:
+            raise typer.BadParameter(
+                f"{name} ({ymd}) は from_ymd ({start:%Y%m%d}) から"
+                f"強調する期間の最初 ({period_from:%Y%m%d}) までの日にしてください"
+            )
     echo(
         f"計算期間 {start:%Y%m%d} ～ {end:%Y%m%d}｜score_freq {cfg.score_freq}｜"
         f"reb_ymd {cfg.reb_ymd}｜保存先の日付 {output_date:%Y%m%d}"
@@ -89,6 +100,7 @@ def main(
         to_ymd(period_to),
         figure_dir,
         log=echo,
+        return_from=cfg.return_from_ymd,
         ic_from=cfg.ic_from_ymd,
         ic_font_scale=cfg.ic_font_scale,
     )

@@ -174,14 +174,15 @@ def draw_factor_figures(
     output_dir: Path,
     log: Callable[[str], None] = print,
     *,
+    return_from: int | None = None,
     ic_from: int | None = None,
     ic_font_scale: float = 1.0,
 ) -> list[Path]:
     """ファクターの図 (PNG) を output_dir に出力し、出力したファイルのパスを返す。
 
-    period_from から period_to を対象期間として強調し、推移は計算期間の最初から描く。
-    IC・TC・リバランス相関の図は ic_from (省略時は計算期間の最初) から描き、
-    文字の大きさを ic_font_scale 倍にする。
+    period_from から period_to を対象期間として強調する。ファクターリターンの図の
+    Cumulative は return_from、IC・TC・リバランス相関の図は ic_from から描く
+    (どちらも省略時は計算期間の最初)。IC 側の文字の大きさは ic_font_scale 倍にする。
     """
     r = results
     period = (period_from, period_to)
@@ -190,29 +191,31 @@ def draw_factor_figures(
             f"計算期間 ({r.from_ymd}-{r.to_ymd}) に対象期間 "
             f"({period_from}-{period_to}) が含まれていません"
         )
+    return_from = r.from_ymd if return_from is None else return_from
     ic_from = r.from_ymd if ic_from is None else ic_from
-    if not r.from_ymd <= ic_from <= period_from:
-        raise ValueError(
-            f"ic_from ({ic_from}) は計算期間の最初 ({r.from_ymd}) から"
-            f"対象期間の最初 ({period_from}) までの日にしてください"
-        )
+    for name, ymd in (("return_from", return_from), ("ic_from", ic_from)):
+        if not r.from_ymd <= ymd <= period_from:
+            raise ValueError(
+                f"{name} ({ymd}) は計算期間の最初 ({r.from_ymd}) から"
+                f"対象期間の最初 ({period_from}) までの日にしてください"
+            )
     figures = {
         "11_factor_common_groups.png": draw_common_factor_groups(
-            r.common_groups, *period, history_from_ymd=r.from_ymd
+            r.common_groups, *period, history_from_ymd=return_from
         ),
         "12_factor_nam_total.png": draw_nam_factors(
             r.nam_total,
             *period,
             rtn_kind="rtn",
             score_freq=r.score_freq,
-            history_from_ymd=r.from_ymd,
+            history_from_ymd=return_from,
         ),
         "13_factor_nam_specific.png": draw_nam_factors(
             r.nam_specific,
             *period,
             rtn_kind="srtn",
             score_freq=r.score_freq,
-            history_from_ymd=r.from_ymd,
+            history_from_ymd=return_from,
         ),
     }
     for column in SCORE_COLUMNS:
