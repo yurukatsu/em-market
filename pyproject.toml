@@ -21,9 +21,6 @@ dependencies = [
     "typer>=0.29.2",
 ]
 
-[project.scripts]
-em-market = "em_market.cli.app:app"
-
 [[tool.uv.index]]
 url = "https://pypi.flatt.tech/simple/"
 default = true

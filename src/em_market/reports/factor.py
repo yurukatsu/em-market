@@ -1,8 +1,8 @@
 """ファクターパフォーマンス: data/raw から計算し、結果の保存・読み込みと作図を行う。
 
-計算と作図は別々に実行する:
-    uv run em-market factor --from-date 2026-01-01 --to-date 2026-11-24 --output-date 2026-11-25
-    uv run em-market report --date 2026-11-25   # 作図 → data/processed/20261125/report/
+計算と作図は別々の notebook で実行する:
+    notebooks/03_factor_performance.ipynb   # 計算 → data/processed/<日付>/factor/
+    notebooks/04_report.ipynb               # 作図 → data/processed/<日付>/report/
 """
 
 import json
@@ -12,8 +12,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import yaml
-from pydantic import BaseModel
 
 from em_market.dates import ScoreFreq, weekly_period
 from em_market.factor.common import (
@@ -27,7 +25,7 @@ from em_market.factor.score import (
     calc_rebalance_corr,
     calc_tc,
 )
-from em_market.paths import CONFIG_DIR, RAW_DIR
+from em_market.paths import RAW_DIR
 from em_market.raw import (
     load_business_days,
     load_common_factors,
@@ -44,20 +42,6 @@ from em_market.viz.factor_monitor import (
 )
 from em_market.viz.market import save_png
 from em_market.viz.score_monitor import draw_score_monitor
-
-
-class FactorPerformanceConfig(BaseModel):
-    """configs/factor_performance.yaml の内容（各項目の説明は yaml 側のコメントを参照）。"""
-
-    score_freq: ScoreFreq = "monthly"
-    reb_ymd: int | None = None
-
-    @classmethod
-    def load(
-        cls, path: Path = CONFIG_DIR / "factor_performance.yaml"
-    ) -> "FactorPerformanceConfig":
-        with path.open("r", encoding="utf-8") as f:
-            return cls.model_validate(yaml.safe_load(f) or {})
 
 
 def factor_period(
@@ -132,11 +116,17 @@ class FactorResults:
 def build_factor_results(
     from_ymd: int,
     to_ymd: int,
-    config: FactorPerformanceConfig,
+    *,
+    score_freq: ScoreFreq = "monthly",
+    reb_ymd: int | None = None,
     raw_dir: Path = RAW_DIR,
     log: Callable[[str], None] = print,
 ) -> FactorResults:
-    """data/raw を読み込み、from_ymd から to_ymd までの各指標を計算する。"""
+    """data/raw を読み込み、from_ymd から to_ymd までの各指標を計算する。
+
+    score_freq: NAM のスコア (monthly: 直近の月末 / daily: 当日)。IC と TC にも同じスコアを使う。
+    reb_ymd: リバランス日。この日以降の日次スコアでリバランス相関を計算する。None なら計算しない。
+    """
     days = load_business_days(raw_dir, from_ymd, to_ymd)
     if not days:
         raise ValueError(f"計算期間に営業日がありません: {from_ymd}-{to_ymd}")
@@ -144,7 +134,7 @@ def build_factor_results(
     log("読み込み")
     returns = load_returns(raw_dir, days, "rtn")
     specific = load_returns(raw_dir, days, "srtn")
-    score_dates = load_score_dates(raw_dir, from_ymd, to_ymd, config.score_freq)
+    score_dates = load_score_dates(raw_dir, from_ymd, to_ymd, score_freq)
     scores = load_scores(raw_dir, score_dates.unique())
 
     log("NAM ファクター")
@@ -153,7 +143,7 @@ def build_factor_results(
     if nam_total.index.max() < to_ymd:
         log(
             f"data/raw のデータは {nam_total.index.max()} までです。"
-            "続きは em-market factor-data で取得してください"
+            "続きは notebooks/02_factor_data.ipynb で取得してください"
         )
 
     log("common ファクター")
@@ -168,18 +158,18 @@ def build_factor_results(
     tc = calc_tc(scores, score_dates, port, bm)
 
     rebalance = None
-    if config.reb_ymd is not None:
+    if reb_ymd is not None:
         log("リバランス相関")
-        reb_dates = load_score_dates(raw_dir, config.reb_ymd, to_ymd, "daily")
+        reb_dates = load_score_dates(raw_dir, reb_ymd, to_ymd, "daily")
         rebalance = calc_rebalance_corr(
-            load_scores(raw_dir, reb_dates.unique()), config.reb_ymd
+            load_scores(raw_dir, reb_dates.unique()), reb_ymd
         )
 
     return FactorResults(
         from_ymd=from_ymd,
         to_ymd=to_ymd,
-        score_freq=config.score_freq,
-        reb_ymd=config.reb_ymd,
+        score_freq=score_freq,
+        reb_ymd=reb_ymd,
         nam_total=nam_total,
         nam_specific=nam_specific,
         common_factors=common_factors,

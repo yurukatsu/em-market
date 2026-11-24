@@ -1,8 +1,8 @@
 """週次レポート（市況）: LSEG から取得したデータから、PNG（PowerPoint 貼り付け用）と CSV を出力する。
 
-取得と作図は別々に実行する:
-    uv run em-market market --output-date 2026-10-21   # 取得 → data/processed/20261021/market/
-    uv run em-market report --date 2026-10-21          # 作図 → data/processed/20261021/report/
+取得と作図は別々の notebook で実行する:
+    notebooks/01_market_data.ipynb   # 取得 → data/processed/<日付>/market/
+    notebooks/04_report.ipynb        # 作図 → data/processed/<日付>/report/
 """
 
 from collections.abc import Callable
@@ -151,10 +151,17 @@ class WeeklyData:
 
 @dataclass
 class WeeklyReport:
+    """週次レポート。
+
+    return_period: リターンの期間 (起点, 終点)。起点の値を基準に終点までのリターンを計算する。
+        省略時は基準日の data_lag_days 日前を終点、その lookback_days 日前を起点とする。
+    """
+
     base_date: pd.Timestamp
     config: WeeklyReportConfig = field(default_factory=WeeklyReportConfig)
     output_dir: Path | None = None
     log: Callable[[str], None] = print
+    return_period: tuple[pd.Timestamp, pd.Timestamp] | None = None
 
     def __post_init__(self) -> None:
         self.base_date = pd.Timestamp(self.base_date).normalize()
@@ -162,9 +169,14 @@ class WeeklyReport:
         cfg = self.config
         # 価格系はデータ基準日（= 基準日の data_lag_days 日前）までの最新値を使う
         # 水曜実行なら前日の火曜。カレンダー系は基準日以降
-        self.return_start, self.return_end = weekly_period(
-            self.base_date, cfg.lookback_days, cfg.data_lag_days
-        )
+        if self.return_period is None:
+            self.return_start, self.return_end = weekly_period(
+                self.base_date, cfg.lookback_days, cfg.data_lag_days
+            )
+        else:
+            self.return_start, self.return_end = (
+                pd.Timestamp(day).normalize() for day in self.return_period
+            )
         self.earnings_end = self.base_date + pd.Timedelta(days=cfg.earnings_days - 1)
         self.period_label = f"{self.return_start:%Y/%m/%d}～{self.return_end:%Y/%m/%d}"
         self.universe = load_universe()

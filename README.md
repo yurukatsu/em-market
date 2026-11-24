@@ -14,30 +14,24 @@ cp .env.example .env   # LSEG_APP_KEY / LSEG_USERNAME / LSEG_PASSWORD を記入 
 
 `lseg-data` が pandas 3 に未対応のため、pandas は 2.x に固定している。
 
-## CLI
+## データの更新 (notebook)
 
-4 つのコマンドは別ファイル (`src/em_market/cli/`) で、それぞれ単独で実行できる。
-日付は `2026-11-25` でも `20261125` でも指定できる。
+`notebooks/` の 4 つの notebook を順に実行する。どれも先頭のパラメータのセルを書き換えてから、すべて実行する。
+日付は `20261125` のような YYYYMMDD で指定する。
 
-```bash
-# 1. LSEG から市況データを取得 → data/processed/20261125/market/
-uv run em-market market --from-date 2026-08-01 --to-date 2026-11-24 --output-date 2026-11-25
-# 2. 社内 DB・ITAAP からデータを取得 → data/raw/ (社内環境のみ)
-uv run em-market factor-data --from-date 2026-01-01 --to-date 2026-11-24
-# 3. ファクターのリターンと IC・TC を計算 → data/processed/20261125/factor/
-uv run em-market factor --from-date 2026-01-01 --to-date 2026-11-24 --output-date 2026-11-25
-# 4. 図とパワポ → data/processed/20261125/report/
-uv run em-market report --date 2026-11-25
-```
+| notebook | 内容 | 保存先 |
+|---|---|---|
+| `01_market_data.ipynb` | LSEG から市況データを取得 | `data/processed/<output_ymd>/market/` |
+| `02_factor_data.ipynb` | 社内 DB・ITAAP から取得 (社内環境のみ) | `data/raw/` |
+| `03_factor_performance.ipynb` | NAM・common ファクターのリターンと IC・TC を計算 | `data/processed/<output_ymd>/factor/` |
+| `04_report.ipynb` | 01・03 の結果から図・表・パワポを作り、図を表示 | `data/processed/<report_ymd>/report/` |
 
-`uv run python -m em_market.cli.factor --output-date 2026-11-25` のように、モジュールとしても実行できる。
+- **01**: 指数・株価・利回り・コモディティを `from_ymd` から `to_ymd` まで取得する。コモディティの図に 3 か月分使う。決算日と経済指標は取得した時点の予定を取る。
+- **02**: 直近の月末営業日のスコアも使うので、`from_ymd` を含む月の前月末から取得する。保存済みの日は取り直さない (`overwrite = True` で取り直す)。
+- **03**: `from_ymd` から `to_ymd` で計算する。図の推移もこの日から描くので、IC の 20 日移動平均のため長めに取る。スコアの種類 (`score_freq`) とリバランス日 (`reb_ymd`) もここで指定する。
+- **04**: 強調する期間 (`period_from_ymd`、`period_to_ymd`) は、省略時は `report_ymd` の前日を終点とする 1 週間 (`configs/weekly_report.yaml` の `data_lag_days`・`lookback_days`)。決算・経済指標のカレンダーは `report_ymd` 以降。market と factor の片方しかなければ、ある方だけ作る。市況の図は `configs/weekly_slides.yaml` に従って `templates/example.pptx` に差し込み、`EM週次市況_<日付>.pptx` も作る。
 
-- **省略時の日付**: `--output-date` は今日、`--to-date` はその前日 (factor-data は昨日)。`--from-date` は、market が `--to-date` の 3 か月 (`commodity_months`) と 2 週間前、factor と factor-data が `--to-date` の年の 1 月 1 日。
-- **market**: 指数・株価・利回り・コモディティを `--from-date` から `--to-date` まで取得する。決算日と経済指標は取得した時点の予定を取る。
-- **factor-data**: 直近の月末営業日のスコアも使うので、`--from-date` を含む月の前月末から取得する。保存済みの日は取り直さない (`--overwrite` で取り直す)。
-- **report**: `--date` のフォルダの market と factor から作る。強調する週 (リターンの期間) は `--date` の前日を終点とする 1 週間 (`configs/weekly_report.yaml` の `data_lag_days`・`lookback_days`)、決算・経済指標のカレンダーは `--date` 以降。片方しかなければ、ある方だけ作る。市況の図は `configs/weekly_slides.yaml` に従って `templates/example.pptx` に差し込み、`EM週次市況_<日付>.pptx` も作る (`--no-slides` で省略)。
-
-補助コマンド: `uv run em-market lseg-history countries --start 2025-10-01` (universe.yaml のグループの時系列を `data/lseg/` に保存)
+notebook を git に入れるときは、実行結果を消してからコミットする。
 
 ## データとファイルの置き場所
 
@@ -47,24 +41,21 @@ configs/
   econ_indicators.yaml     経済指標カレンダーの対象
   weekly_report.yaml       週次レポートのパラメータ (期間、フィルターなど)
   weekly_slides.yaml       パワポに差し込む図の対応
-  factor_performance.yaml  ファクターのスコアの種類、リバランス日
 data/                      (git 管理外)
   raw/                     社内データ (ai, bd, bm, port, rtn, srtn, common, calendar.csv)。
                            週次レポートの BM も bm/ のうちレポートの日付以前で最新の日を使う
   processed/<日付>/
-    market/                LSEG から取得した市況データ (CSV)
-    factor/                ファクターのリターン、IC・TC (CSV) と期間など (meta.json)
+    market/                LSEG から取得した市況データ (CSV) と取得期間 (meta.json)
+    factor/                ファクターのリターン、IC・TC (CSV) と計算期間など (meta.json)
     report/                図 (PNG)、表 (CSV)、パワポ
-  lseg/                    lseg-history で取得した時系列
 templates/example.pptx     週次レポートのパワポのテンプレート (git 管理外)
-notebooks/                 factor_performance.ipynb (ファクター分析)、weekly_report_sample.ipynb (週次レポート)
+notebooks/                 データ更新の notebook (01〜04)
 ```
 
 ## コード構成
 
 ```
 src/em_market/
-  cli/            CLI。app.py がコマンドの一覧、各コマンドは market / factor_data / factor / report.py
   paths.py        configs/, data/, templates/ の場所
   const.py        ファクター・国などの定数
   dates.py        日付の共通定義 (週次の期間など)
@@ -76,5 +67,3 @@ src/em_market/
   reports/        weekly.py (市況)、factor.py (ファクター)、slides.py (パワポへの差し込み)
   fonts/          Noto Sans JP (SIL OFL)
 ```
-
-notebook を git に入れるときは、実行結果を消してからコミットする。
