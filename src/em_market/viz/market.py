@@ -27,7 +27,6 @@ from em_market.viz.style import (
     INK,
     MUTED,
     ROW_RULE,
-    STRIPE,
     SUBTLE,
     UP,
 )
@@ -43,7 +42,6 @@ COLORS = {
     "text_secondary": MUTED,
     "text_muted": SUBTLE,
     "grid": ROW_RULE,
-    "band": STRIPE,
     "surface": BG,
     "badge_plan": "#C9D5E8",
     "badge_plan_text": "#1A4A8A",
@@ -287,7 +285,8 @@ def plot_earnings_counts(
     ax.set_ylim(0, ymax)
     if highlight and in_window.any():
         lo, hi = x[in_window].min() - 0.5, x[in_window].max() + 0.5
-        ax.axvspan(lo, hi, color=COLORS["band"], zorder=0)
+        for edge in (lo, hi):  # 背景は塗らず、境目に点線を引く
+            ax.axvline(edge, color=COLORS["text_muted"], lw=0.8, ls=":", zorder=1)
         ax.text(
             (lo + hi) / 2,
             ymax * 0.97,
@@ -416,9 +415,8 @@ def plot_earnings_table(
             yc = i + 1.5
             if item[0] in ("group", "continued"):
                 _, d, count, weight = item
-                ax.add_patch(
-                    Rectangle((0, yc - 0.5), 1, 1, color=COLORS["band"], zorder=0)
-                )
+                # 日付の行は背景を塗らず、上に線を引いて区切る
+                ax.axhline(yc - 0.5, color=COLORS["grid"], linewidth=0.8)
                 cont = " 続き" if item[0] == "continued" else ""
                 ax.text(
                     0.005,
@@ -710,7 +708,8 @@ def plot_dual_axis(
     if highlight:
         # 帯はデータの最終日までに収める（基準日の値がまだ無い場合に右へはみ出さないように）
         band_start, band_end = highlight[0], min(highlight[1], data.index[-1])
-        ax_left.axvspan(band_start, band_end, color=COLORS["band"], zorder=0)
+        for edge in (band_start, band_end):  # 背景は塗らず、境目に点線を引く
+            ax_left.axvline(edge, color=COLORS["text_muted"], lw=0.8, ls=":", zorder=1)
         ax_left.text(
             band_start + (band_end - band_start) / 2,
             0.985,
@@ -880,8 +879,8 @@ def plot_rates_table(
     for i, country in enumerate(rows):
         r = table.loc[country]
         yc = i + 2.5
-        if country in reference_rows:
-            ax.add_patch(Rectangle((0, yc - 0.5), 1, 1, color=COLORS["band"], zorder=0))
+        if country in reference_rows:  # 参考の行は下に線を引いて区切る
+            ax.axhline(yc + 0.5, color=COLORS["grid"], linewidth=0.8)
         is_ref = country in reference_rows
         ax.text(
             0.005,
@@ -1020,9 +1019,8 @@ def plot_econ_calendar(
             yc = i + 1.5
             if item[0] in ("group", "continued"):
                 _, d, count = item
-                ax.add_patch(
-                    Rectangle((0, yc - 0.5), 1, 1, color=COLORS["band"], zorder=0)
-                )
+                # 日付の行は背景を塗らず、上に線を引いて区切る
+                ax.axhline(yc - 0.5, color=COLORS["grid"], linewidth=0.8)
                 cont = " 続き" if item[0] == "continued" else ""
                 ax.text(
                     0.005,
@@ -1250,7 +1248,7 @@ def plot_treemap(
                     (r["x"], r["y"]),
                     r["dx"],
                     r["dy"],
-                    facecolor=COLORS["surface"] if top else COLORS["band"],
+                    facecolor=COLORS["surface"],
                     edgecolor=COLORS["text_muted"] if top else COLORS["grid"],
                     linewidth=1.0 if top else 0.6,
                     zorder=0,

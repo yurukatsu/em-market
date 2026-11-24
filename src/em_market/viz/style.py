@@ -15,7 +15,6 @@ from matplotlib.collections import LineCollection
 BG = "#FFFFFF"  # 背景 (白)
 ACCENT = "#3C3C3C"  # 強調色 (濃いグレー): タイトル、見出し、区切り線
 BAND = "#C4C4C4"  # 対象期間の網掛け
-STRIPE = "#D9D9D9"  # 表の縞、控えめな強調
 UP, DN = "#1F5AA6", "#A33A44"  # プラス (青)、マイナス (えんじ色)
 INK, MUTED, SUBTLE = "#1A1A1A", "#5F5F5F", "#7A7A7A"  # 文字: 本文、補足、目盛りなど
 GRID, ZERO, ROW_RULE = "#9A9A9A", "#6E6E6E", "#D0D0D0"
