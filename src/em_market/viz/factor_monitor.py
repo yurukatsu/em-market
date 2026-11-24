@@ -22,8 +22,8 @@ from em_market.dates import ScoreFreq
 from em_market.viz.style import (
     ACCENT,
     BAND,
-    BG,
     DN,
+    FACTOR_BG,
     FIGSIZE,
     GRID,
     INK,
@@ -414,7 +414,7 @@ def draw_factor_chart(
         columns = COLUMNS
     else:
         columns = COLUMNS_PERIOD_ONLY
-    fig = Figure(figsize=(width, height), facecolor=BG)
+    fig = Figure(figsize=(width, height), facecolor=FACTOR_BG)
     canvas = _Canvas(fig, height, row_h, columns)
 
     if subtitle is None:
