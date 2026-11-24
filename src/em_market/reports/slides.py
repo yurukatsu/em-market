@@ -5,7 +5,8 @@
 """
 
 import copy
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from itertools import pairwise
 from pathlib import Path
 
 import yaml
@@ -76,7 +77,7 @@ class SlidesConfig(BaseModel):
     @model_validator(mode="after")
     def _no_overlap(self) -> "SlidesConfig":
         specs = sorted(self.slides, key=lambda s: s.first)
-        for a, b in zip(specs, specs[1:], strict=False):
+        for a, b in pairwise(specs):
             if b.first <= a.last:
                 raise ValueError(
                     f"スライド番号が重複しています: {a.first}-{a.last} と {b.first}"
@@ -194,16 +195,31 @@ def _fill(slide: Slide, number: int, images: list[Path]) -> None:
 
 
 def build_slides(
-    image_dir: Path,
+    image_dir: Path | Sequence[Path],
     output_path: Path,
     config: SlidesConfig,
     log: Callable[[str], None] = print,
 ) -> Path:
     """image_dir の PNG をテンプレートに差し込んで output_path に保存する。
 
+    image_dir は複数のフォルダでもよく、同じ名前の画像は先に指定したフォルダのものを使う。
     スライド番号はテンプレート上の番号（1始まり）。複数ページの図はページ数に合わせて
     範囲内の最後のスライドを複製するか、余ったスライドを削除する。
     """
+    image_dirs = [image_dir] if isinstance(image_dir, Path) else list(image_dir)
+
+    def find(name: str) -> Path:
+        for directory in image_dirs:
+            if (directory / name).exists():
+                return directory / name
+        return image_dirs[0] / name
+
+    def glob(pattern: str) -> list[Path]:
+        found: dict[str, Path] = {}
+        for directory in reversed(image_dirs):
+            found |= {path.name: path for path in directory.glob(pattern)}
+        return [found[name] for name in sorted(found)]
+
     prs = Presentation(str(config.template))
     n_slides = len(prs.slides)
     for spec in config.slides:
@@ -215,16 +231,17 @@ def build_slides(
     # 後ろのスライドから処理すれば、複製・削除しても前のスライド番号はずれない
     for spec in sorted(config.slides, key=lambda s: s.first, reverse=True):
         if spec.slide is not None:
-            paths = [image_dir / name for name in spec.images]
+            paths = [find(name) for name in spec.images]
             missing = [p.name for p in paths if not p.exists()]
             if missing:
-                raise FileNotFoundError(
-                    f"スライド {spec.slide}: 画像がありません: {missing}"
+                log(
+                    f"警告: スライド {spec.slide}: 画像がないのでテンプレートのまま残します: {missing}"
                 )
+                continue
             _fill(prs.slides[spec.slide - 1], spec.slide, paths)
             continue
 
-        pages = sorted(image_dir.glob(spec.pages))
+        pages = glob(spec.pages)
         first, last = spec.slides
         n_template = last - first + 1
         if not pages:

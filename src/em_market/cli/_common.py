@@ -7,9 +7,13 @@ import typer
 import yaml
 from pydantic import BaseModel, ConfigDict
 
-from em_market.paths import CONFIG_DIR
+from em_market.paths import CONFIG_DIR, ensure_configs
 
 CLI_CONFIG_DIR = CONFIG_DIR / "cli"
+
+# configs/ は git 管理外。初回 (や configs.sample/ に設定が増えたとき) は雛形からコピーする。
+# --config の存在チェックより前に済ませるため、読み込んだ時点で実行する
+ensure_configs(log=lambda message: typer.echo(f"- {message}", err=True))
 
 
 class CliConfig(BaseModel):
@@ -58,6 +62,36 @@ def check_range(start: pd.Timestamp, end: pd.Timestamp) -> None:
         raise typer.BadParameter(
             f"from_ymd が to_ymd より後です: {start:%Y%m%d} > {end:%Y%m%d}"
         )
+
+
+def highlight_period(
+    base_date: pd.Timestamp, from_ymd: int | None, to_ymd: int | None
+) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """図で強調する期間 (最初の日, 最後の日)。
+
+    省略した方は週次レポートと同じ週 (base_date の data_lag_days 日前を終点とする
+    lookback_days 日間。configs/weekly_report.yaml) から決める。
+    """
+    from em_market.dates import weekly_period
+    from em_market.reports.weekly import WeeklyReportConfig
+
+    weekly = WeeklyReportConfig.load()
+    start, end = weekly_period(base_date, weekly.lookback_days, weekly.data_lag_days)
+    first = to_date(from_ymd, start + pd.Timedelta(days=1))
+    last = to_date(to_ymd, end)
+    if first > last:
+        raise typer.BadParameter(
+            f"period_from_ymd が period_to_ymd より後です: {first:%Y%m%d} > {last:%Y%m%d}"
+        )
+    return first, last
+
+
+def clear_files(directory: Path) -> None:
+    """図の置き場所を作り直す。前回の図 (ページ数が減ったときの余りなど) を残さない。"""
+    if directory.exists():
+        for path in directory.iterdir():
+            if path.is_file():
+                path.unlink()
 
 
 def echo(message: str) -> None:

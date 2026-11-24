@@ -1,8 +1,8 @@
 """週次レポート（市況）: LSEG から取得したデータから、PNG（PowerPoint 貼り付け用）と CSV を出力する。
 
-取得と作図は別々のコマンドで実行する (設定は configs/cli/market.yaml, report.yaml):
-    uv run em-market market   # 取得 → data/processed/<日付>/market/
-    uv run em-market report   # 作図 → data/processed/<日付>/report/
+取得と作図は em-market market で続けて行う (設定は configs/cli/market.yaml):
+    取得したデータ → data/processed/<日付>/market/data/
+    図と表         → data/processed/<日付>/market/figures/
 """
 
 from collections.abc import Callable
@@ -165,7 +165,9 @@ class WeeklyReport:
 
     def __post_init__(self) -> None:
         self.base_date = pd.Timestamp(self.base_date).normalize()
-        self.output_dir = self.output_dir or processed_dir(self.base_date, "report")
+        self.output_dir = self.output_dir or processed_dir(
+            self.base_date, "market", "figures"
+        )
         cfg = self.config
         # 価格系はデータ基準日（= 基準日の data_lag_days 日前）までの最新値を使う
         # 水曜実行なら前日の火曜。カレンダー系は基準日以降

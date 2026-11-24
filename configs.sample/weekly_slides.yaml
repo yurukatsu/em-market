@@ -1,6 +1,6 @@
 # 週次レポートの図をパワポのテンプレートに差し込む設定（em-market report）
-# テンプレート上の図を、位置・大きさを保ったまま data/processed/<基準日>/report/ の PNG に差し替える。
-# ここに書いていないスライド（ファクター・コメントなど）はテンプレートのまま残る
+# テンプレート上の図を、位置・大きさを保ったまま data/processed/<基準日>/{market,factor}/figures/ の PNG に差し替える。
+# ここに書いていないスライド（コメントなど）と、図がまだないスライドはテンプレートのまま残る
 
 template: templates/example.pptx
 output_name: "EM週次市況_{date:%Y%m%d}.pptx"   # 保存先は data/processed/<基準日>/report/
@@ -21,11 +21,25 @@ slides:
     images: [10_treemap_sector.png]
   - slide: 7
     images: [10_treemap_country_sector.png]
-  - slides: [17, 18]
+  # ファクター (em-market factor の図)
+  - slide: 9
+    images: [11_factor_common_groups.png]
+  - slide: 10
+    images: [12_factor_nam_total.png]
+  - slide: 11
+    images: [13_factor_nam_specific.png]
+  - slide: 12
+    images: [14_score_monitor_ai.png]
+  - slide: 13
+    images: [14_score_monitor_bd.png]
+  - slide: 14
+    images: [14_score_monitor_ai70_bd30.png]
+  # 経済指標・決算
+  - slides: [15, 16]
     pages: "09_econ_calendar_*.png"
-  - slide: 19
+  - slide: 17
     images: [03_earnings_counts.png]
-  - slide: 20
+  - slide: 18
     images: [05_earnings_top_by_date.png]
-  - slides: [21, 27]
+  - slides: [19, 25]
     pages: "04_earnings_calendar_*.png"

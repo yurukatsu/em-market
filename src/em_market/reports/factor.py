@@ -1,8 +1,8 @@
 """ファクターパフォーマンス: data/raw から計算し、結果の保存・読み込みと作図を行う。
 
-計算と作図は別々のコマンドで実行する (設定は configs/cli/factor.yaml, report.yaml):
-    uv run em-market factor   # 計算 → data/processed/<日付>/factor/
-    uv run em-market report   # 作図 → data/processed/<日付>/report/
+計算と作図は em-market factor で続けて行う (設定は configs/cli/factor.yaml):
+    計算結果 → data/processed/<日付>/factor/data/
+    図       → data/processed/<日付>/factor/figures/
 """
 
 import json
@@ -13,7 +13,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from em_market.dates import ScoreFreq, weekly_period
+from em_market.dates import ScoreFreq
 from em_market.factor.common import (
     calc_common_factor_returns,
     calc_common_group_returns,
@@ -42,19 +42,6 @@ from em_market.viz.factor_monitor import (
 )
 from em_market.viz.market import save_png
 from em_market.viz.score_monitor import draw_score_monitor
-
-
-def factor_period(
-    base_date: str | pd.Timestamp, lookback_days: int, data_lag_days: int
-) -> tuple[int, int]:
-    """週次レポートと同じ週を、ファクターの対象期間 (最初の日, 最後の日) で返す。
-
-    週次レポートは起点の値を基準にするので、ファクターの対象期間は起点の翌日から。
-    """
-    start, end = weekly_period(base_date, lookback_days, data_lag_days)
-    first = start + pd.Timedelta(days=1)
-    return int(f"{first:%Y%m%d}"), int(f"{end:%Y%m%d}")
-
 
 _FRAMES = ("nam_total", "nam_specific", "common_factors", "common_groups", "ic", "tc")
 

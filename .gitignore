@@ -30,3 +30,6 @@ templates/*
 
 # Archives
 *.zip
+
+# 設定 (よく編集するので git 管理外。configs.sample/ が雛形)
+/configs/

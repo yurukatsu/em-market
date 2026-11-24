@@ -1,0 +1,13 @@
+# em-market market: LSEG から市況データを取得して図と表を作り、data/processed/<output_ymd>/market/ に保存する
+#   data/     取得したデータ (CSV) と取得期間 (meta.json)
+#   figures/  図 (PNG) と表 (CSV)。毎回作り直す
+# 日付は YYYYMMDD。null なら括弧内の既定値
+# 決算日・経済指標カレンダーの基準日と、BM (data/raw/bm の最新日) の基準は output_ymd
+# 取得する時系列の種類は configs/universe.yaml、取得フィールドなどは configs/weekly_report.yaml
+
+output_ymd: null       # 保存先の日付 (今日)。通常はレポートを作る日 (水曜)
+fetch: true            # false なら取得せず、保存済みの data/ から図だけ作り直す (from_ymd・to_ymd は使わない)
+from_ymd: null         # 指数・株価・利回り・コモディティの取得開始日 (to_ymd の commodity_months か月と 2 週間前)
+to_ymd: null           # 取得終了日 (output_ymd の前日)
+period_from_ymd: null  # 強調する期間 (リターンの期間) の最初の日 (output_ymd の前日を終点とする 1 週間)
+period_to_ymd: null    # 強調する期間の最後の日 (output_ymd の前日)

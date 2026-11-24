@@ -1,0 +1,6 @@
+# em-market report: data/processed/<report_ymd>/{market,factor}/figures/ の図をパワポのテンプレートに貼り、
+# data/processed/<report_ymd>/report/ に保存する。図はここでは作らない (market / factor で作る)
+# 日付は YYYYMMDD。null なら括弧内の既定値
+# どのスライドにどの図を貼るかは configs/weekly_slides.yaml
+
+report_ymd: null  # レポートの日付 (今日)。market・factor の output_ymd と同じ日にする

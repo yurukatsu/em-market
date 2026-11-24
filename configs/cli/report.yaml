@@ -1,9 +1,0 @@
-# em-market report: data/processed/<report_ymd>/ の market と factor から図 (PNG)・表 (CSV)・パワポを作り、
-# data/processed/<report_ymd>/report/ に保存する。片方しかなければ、ある方だけ作る
-# 日付は YYYYMMDD。null なら括弧内の既定値
-# 決算・経済指標のカレンダーは report_ymd 以降。パワポへの差し込みは configs/weekly_slides.yaml
-
-report_ymd: null       # レポートの日付 (今日)
-period_from_ymd: null  # 強調する期間 (リターンの期間) の最初の日 (report_ymd の前日を終点とする 1 週間)
-period_to_ymd: null    # 強調する期間の最後の日。period_from_ymd と両方指定したときだけ使う
-make_slides: true      # 市況の図を templates/example.pptx に差し込んだパワポも作る
