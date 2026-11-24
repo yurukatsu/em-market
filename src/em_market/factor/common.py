@@ -1,7 +1,8 @@
 """ユニバース、日次リターン、月次ファクターから common ファクターのリターンを算出する。
 
-各基準日について、当日のユニバースの銘柄で前月の月次ファクターを正規スコアに変換する。
+各基準日について、当日のユニバースの銘柄で月次ファクターを正規スコアに変換する。
 ファクターごとに当日の USD リターンを単回帰し、その傾きをファクターリターンとする。
+どの月のファクターを使うか (通常は前月) は、入力側で決める。
 """
 
 import warnings
@@ -13,7 +14,6 @@ import numpy as np
 import pandas as pd
 
 from em_market.const import COMMON_FACTOR_CATEGORIES, COMMON_FACTOR_CATEGORY_MAP
-from em_market.dates import previous_ym
 
 MISSING_THRESHOLD: float = -100.0  # これ以下のファクター値は欠損として扱う
 BLOM_ALPHA: float = 3 / 8
@@ -81,15 +81,15 @@ def calc_slopes(exposures: pd.DataFrame, returns: pd.Series) -> pd.Series:
 def calc_common_factor_returns(
     universe: pd.DataFrame,
     returns: pd.DataFrame,
-    monthly_factors: Mapping[int, pd.DataFrame],
+    factors: Mapping[int, pd.DataFrame],
 ) -> pd.DataFrame:
     """common ファクターの日次リターン (スコア 1 標準偏差あたりの %) を返す。
 
     universe: ymd, bid を持つ各日のユニバース。
     returns: ymd, bid, rtn を持つ日次リターン。
-    monthly_factors: YYYYMM → 月次ファクター (bid が index)。
+    factors: 基準日 → その日に使う月次ファクター (bid が index)。
 
-    ユニバース、リターン、前月のファクターのいずれかがない日は除外する。
+    ユニバース、リターン、ファクターのいずれかがない日は除外する。
     """
     universes = {
         int(ymd): pd.Index(bids) for ymd, bids in universe.groupby("ymd")["bid"]
@@ -97,16 +97,16 @@ def calc_common_factor_returns(
     daily_returns = {
         int(ymd): day.set_index("bid")["rtn"] for ymd, day in returns.groupby("ymd")
     }
+    daily_factors = {int(ymd): values for ymd, values in factors.items()}
 
     results: dict[int, pd.Series] = {}
     skipped: list[int] = []
-    for ymd in sorted(universes.keys() | daily_returns.keys()):
-        factors = monthly_factors.get(previous_ym(ymd))
-        if factors is None or ymd not in universes or ymd not in daily_returns:
+    for ymd in sorted(universes.keys() | daily_returns.keys() | daily_factors.keys()):
+        if ymd not in universes or ymd not in daily_returns or ymd not in daily_factors:
             skipped.append(ymd)
             continue
         results[ymd] = calc_slopes(
-            make_exposures(factors, universes[ymd]), daily_returns[ymd]
+            make_exposures(daily_factors[ymd], universes[ymd]), daily_returns[ymd]
         )
 
     if skipped:
@@ -117,6 +117,38 @@ def calc_common_factor_returns(
     result = pd.DataFrame(results).T
     result.index.name = "date"
     return result
+
+
+def calc_active_exposures(
+    factors: pd.DataFrame,
+    universe: pd.Index,
+    port_weights: pd.Series,
+    bm_weights: pd.Series,
+) -> pd.Series:
+    """ファクターごとに、ファンドと BM のエクスポージャーの差 (正規スコアの σ 単位) を返す。
+
+    factors: その日に使う月次ファクター (bid が index)。
+    universe: 正規スコアに変換するときの銘柄。
+    port_weights, bm_weights: bid → ウェイト (それぞれ合計 1)。
+
+    各銘柄のエクスポージャーは、ユニバース内で正規スコアに変換し欠損を 0 で埋めたもの
+    (リターンの回帰と同じ) で、ユニバース外の銘柄は 0 とする。
+    アクティブエクスポージャー = Σ (ファンドのウェイト − BM のウェイト) × エクスポージャー。
+    全銘柄が欠損のファクターは NaN を返す。
+    """
+    exposures = make_exposures(factors, universe)
+    active_weights = port_weights.sub(bm_weights, fill_value=0.0)
+    weighted = exposures.reindex(active_weights.index).fillna(0.0)
+    result = weighted.mul(active_weights, axis=0).sum()
+    return result.where(exposures.notna().any())
+
+
+def calc_common_group_exposures(factor_exposures: pd.Series) -> pd.Series:
+    """ファクターグループごとに、所属ファクターのエクスポージャーの単純平均を返す。
+
+    グループの作り方は calc_common_group_returns と同じ。
+    """
+    return calc_common_group_returns(factor_exposures.to_frame().T).iloc[0]
 
 
 def calc_common_group_returns(factor_returns: pd.DataFrame) -> pd.DataFrame:

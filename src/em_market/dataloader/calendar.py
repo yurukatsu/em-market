@@ -1,13 +1,14 @@
 import datetime
 
 import pandas as pd
-from namdb import EquityConfig, read_db
-
-
+from namdb import (
+    EquityConfig,
+    read_db
+)
 def get_calendar(
     from_ymd: int | str = 20201231,
     to_ymd: int | str = 20501231,
-    index_code: int = "MSEM",
+    index_code: int ="MSEM"
 ) -> pd.DataFrame:
     sql = """
         SELECT DISTINCT dateymd
@@ -38,13 +39,22 @@ def get_calendar(
     # 当月の月末最終営業日
     current_month_ends = months.map(month_ends)
 
+    # 前月の最終営業日
+    last_month_ends = (months - 1).map(month_ends)
+
     # その日以前で直近の月末最終営業日
-    latest_month_ends = (months - 1).map(month_ends)
-    latest_month_ends = latest_month_ends.mask(
+    latest_month_ends = last_month_ends.mask(
         dates.eq(current_month_ends),
         dates,
     )
 
-    df["month_end"] = current_month_ends.dt.strftime("%Y%m%d").astype("Int64")
-    df["latest_month_end"] = latest_month_ends.dt.strftime("%Y%m%d").astype("Int64")
+    df["month_end"] = (
+        current_month_ends.dt.strftime("%Y%m%d").astype("Int64")
+    )
+    df["last_month_end"] = (
+        last_month_ends.dt.strftime("%Y%m%d").astype("Int64")
+    )
+    df["latest_month_end"] = (
+        latest_month_ends.dt.strftime("%Y%m%d").astype("Int64")
+    )
     return df

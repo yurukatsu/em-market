@@ -1,20 +1,32 @@
 [project]
 name = "em-market"
 version = "0.1.0"
-description = "Add your description here"
+description = "新興国株式のファクター分析と、LSEG の市況データによる週次レポート"
 readme = "README.md"
 authors = [
     { name = "yurukatsu", email = "yuruyuru.kaihatsu@gmail.com" }
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "lseg-data>=2.1.1",
     "matplotlib>=3.11.2",
-    "pandas>=3.1.1",
+    "notebook>=7.6.5",
+    # lseg-data が pandas 3 に未対応のため 2.x に固定する
+    "pandas>=2.3.3,<3",
+    "pydantic>=2.13.5",
+    "python-dotenv>=1.2.4",
+    "python-pptx>=1.0.2",
+    "pyyaml>=6.0.3",
+    "squarify>=0.4.5",
     "typer>=0.29.2",
 ]
 
 [project.scripts]
-em-market = "em_market:main"
+em-market = "em_market.cli.app:app"
+
+[[tool.uv.index]]
+url = "https://pypi.flatt.tech/simple/"
+default = true
 
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13.0"]

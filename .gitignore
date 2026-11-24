@@ -9,6 +9,24 @@ wheels/
 # Virtual environments
 .venv
 
+# Tool caches
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Secrets (LSEG の認証情報)
+.env
+lseg-data.config.json
+
 # Folders
 archive/
 data/
+
+# Lock file
+uv.lock
+
+# パワポのテンプレート (社内資料のためリポジトリに含めない)
+templates/*
+!templates/.gitkeep
+
+# Archives
+*.zip

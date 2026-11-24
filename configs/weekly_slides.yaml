@@ -1,0 +1,31 @@
+# 週次レポートの図をパワポのテンプレートに差し込む設定（em-market report）
+# テンプレート上の図を、位置・大きさを保ったまま data/processed/<基準日>/report/ の PNG に差し替える。
+# ここに書いていないスライド（ファクター・コメントなど）はテンプレートのまま残る
+
+template: templates/example.pptx
+output_name: "EM週次市況_{date:%Y%m%d}.pptx"   # 保存先は data/processed/<基準日>/report/
+
+# スライド番号はテンプレート上の番号（表紙 = 1）
+#   slide + images: そのスライドの図に、左上から読む順（上の行から、行内は左から）で差し込む。
+#                   図の数と images の数は一致させる
+#   slides + pages: 複数ページの図（ファイル名のパターン）を [最初, 最後] のスライドに1枚ずつ入れる。
+#                   ページ数が多ければ最後のスライドを複製し、少なければ余ったスライドを削除する
+slides:
+  - slide: 3
+    images: [06_us_yield_curve.png, 07_commodities.png]
+  - slide: 4
+    images: [01_country_returns.png, 02_sector_returns.png]
+  - slide: 5
+    images: [10_treemap_country.png]
+  - slide: 6
+    images: [10_treemap_sector.png]
+  - slide: 7
+    images: [10_treemap_country_sector.png]
+  - slides: [17, 18]
+    pages: "09_econ_calendar_*.png"
+  - slide: 19
+    images: [03_earnings_counts.png]
+  - slide: 20
+    images: [05_earnings_top_by_date.png]
+  - slides: [21, 27]
+    pages: "04_earnings_calendar_*.png"

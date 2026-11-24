@@ -1,0 +1,10 @@
+# ファクターパフォーマンス（em-market factor / report）の設定
+# 計算期間は em-market factor の --from-date / --to-date で指定する。
+# 図で強調する週は、週次レポートと同じく report の日付から決める
+# （configs/weekly_report.yaml の data_lag_days・lookback_days）
+
+# NAM のスコア: monthly（直近の月末）/ daily（当日）。IC と TC にも同じスコアを使う
+score_freq: monthly
+
+# リバランス日（YYYYMMDD）。リバランス相関はこの日以降の日次スコアで計算する。null なら計算しない
+reb_ymd: null

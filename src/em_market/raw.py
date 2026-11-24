@@ -8,11 +8,12 @@ from typing import Literal
 import pandas as pd
 
 from em_market.const import COMMON_FACTOR
-from em_market.dates import ScoreFreq
+from em_market.dates import ScoreFreq, previous_ym
 
 MAX_ABS_RTN: float = 100.0  # これ以上の絶対値 (%) はデータエラーとして除外する
 
 RtnKind = Literal["rtn", "srtn"]
+WeightKind = Literal["port", "bm"]
 
 
 def load_business_days(raw_dir: str | Path, from_ymd: int, to_ymd: int) -> list[int]:
@@ -129,22 +130,102 @@ def load_universe(raw_dir: str | Path, ymds: Iterable[int]) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True)[["ymd", "bid"]]
 
 
-def load_monthly_factors(
+def load_common_factors(
     raw_dir: str | Path,
-    yms: Iterable[int],
+    ymds: Iterable[int],
 ) -> dict[int, pd.DataFrame]:
-    """YYYYMM → 月次ファクター (bid が index) を返す。ファイルがない・空の月は含めない。"""
+    """基準日 → その日に使う月次ファクター (bid が index) を返す。
+
+    common/{基準日}.csv には、基準日のユニバースの銘柄について前月のファクターが
+    入っている前提とする。ファイルがない・空の日は含めない。DATE が前月でない
+    ファイルは、将来の情報を使わないようエラーにする。
+    """
     raw_dir = Path(raw_dir)
     result: dict[int, pd.DataFrame] = {}
-    for ym in sorted(set(yms)):
-        path = raw_dir / "common" / f"{ym}.csv"
+    missing: list[int] = []
+    for ymd in ymds:
+        path = raw_dir / "common" / f"{ymd}.csv"
         if not path.exists():
+            missing.append(ymd)
             continue
         factors = pd.read_csv(
             path,
-            usecols=["bid", *COMMON_FACTOR],
+            usecols=["bid", "DATE", *COMMON_FACTOR],
             dtype={factor: "float64" for factor in COMMON_FACTOR},
         )
-        if not factors.empty:
-            result[ym] = factors.set_index("bid")[COMMON_FACTOR]
+        if factors.empty:
+            missing.append(ymd)
+            continue
+
+        months = sorted(set(factors["DATE"].dropna().astype(int)))
+        if months != [previous_ym(ymd)]:
+            raise ValueError(
+                f"common/{ymd}.csv の DATE が前月 ({previous_ym(ymd)}) ではありません: {months}"
+            )
+        result[ymd] = factors.set_index("bid")[COMMON_FACTOR]
+
+    if missing:
+        warnings.warn(f"common がないため該当する基準日を除外します: {missing}")
+    if not result:
+        raise ValueError("読み込める common がありません")
     return result
+
+
+def load_weights(raw_dir: str | Path, kind: WeightKind, ymd: int) -> pd.Series:
+    """指定日のウェイトを bid → 比率 (全銘柄の合計が 1) で返す。
+
+    kind: port (ファンド) または bm (ベンチマーク)。bid がない銘柄は警告を出して除き、
+    その分を残りの銘柄に配り直さない。
+    """
+    path = Path(raw_dir) / kind / f"{ymd}.csv"
+    if not path.exists():
+        raise FileNotFoundError(f"{kind} がありません: {path}")
+
+    weights, n_no_bid, share = _read_weights(path)
+    if n_no_bid:
+        warnings.warn(
+            f"{kind}/{ymd}.csv の bid がない {n_no_bid} 銘柄 "
+            f"(ウェイト {share:.2%}) を除外します"
+        )
+    return weights
+
+
+def load_weight_history(
+    raw_dir: str | Path, kind: WeightKind, ymds: Iterable[int]
+) -> pd.DataFrame:
+    """複数日のウェイト (ymd, bid, weight) を返す。各日の合計は 1 (load_weights と同じ)。
+
+    ファイルがない日は除き、bid がない銘柄を除いた日とあわせて警告を 1 回だけ出す。
+    """
+    raw_dir = Path(raw_dir)
+    frames: list[pd.DataFrame] = []
+    missing: list[int] = []
+    no_bid_days: list[int] = []
+    for ymd in ymds:
+        path = raw_dir / kind / f"{ymd}.csv"
+        if not path.exists():
+            missing.append(ymd)
+            continue
+        weights, n_no_bid, _ = _read_weights(path)
+        if n_no_bid:
+            no_bid_days.append(ymd)
+        frames.append(weights.reset_index().assign(ymd=ymd))
+
+    if missing:
+        warnings.warn(f"{kind} がないため該当する日を除外します: {missing}")
+    if no_bid_days:
+        warnings.warn(f"{kind} の bid がない銘柄を除外した日: {no_bid_days}")
+    if not frames:
+        raise ValueError(f"読み込める {kind} がありません")
+    return pd.concat(frames, ignore_index=True)[["ymd", "bid", "weight"]]
+
+
+def _read_weights(path: Path) -> tuple[pd.Series, int, float]:
+    """ウェイトを bid → 比率で返す。あわせて bid がない銘柄の数とウェイトの比率を返す。"""
+    holdings = pd.read_csv(path, usecols=["bid", "weight"])
+    total = holdings["weight"].sum()
+    no_bid = holdings["bid"].isna()
+    share = holdings.loc[no_bid, "weight"].sum() / total
+    weights = holdings[~no_bid].groupby("bid")["weight"].sum() / total
+    weights.name = "weight"
+    return weights, int(no_bid.sum()), float(share)

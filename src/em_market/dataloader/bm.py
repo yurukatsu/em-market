@@ -21,8 +21,14 @@ def get_rga_weight(ymd: int | str, sedol_convert: bool = True) -> pd.DataFrame:
 
     df = read_db(TRCConfig(), sql, params=params)
     sedols = df["sedol"].to_list()
-    df["bid"] = df["sedol"].map(CodeConverter.from_sedol_to_bid(sedols, ymd))
+    df["bid"] = df["sedol"].map(
+        CodeConverter.from_sedol_to_bid(sedols, ymd)
+    )
     if sedol_convert:
         df["sedol"] = df["sedol"].replace(SEDOL_CONVERSION_MAP)
+        df["sedol"] = df["sedol"].str.removesuffix("CHN")
+        df["sedol"] = df["sedol"].str.removesuffix("CHE")
+        df["sedol"] = df["sedol"].str.removesuffix("LUX")
+        df["sedol"] = df["sedol"].str.removesuffix("DGA")
 
     return df
