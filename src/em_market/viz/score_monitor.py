@@ -38,33 +38,40 @@ LABEL_WIDTH: float = 0.40  # 値のラベルの幅の目安 (インチ)
 LABEL_MARGIN: float = 0.45  # グラフの右側に空ける幅 (インチ)
 
 
-def _style_axes(ax: Axes) -> None:
+def _style_axes(ax: Axes, scale: float = 1.0) -> None:
     ax.set_facecolor("none")
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
     for side in ("left", "bottom"):
         ax.spines[side].set_color(GRID)
         ax.spines[side].set_linewidth(0.6)
-    ax.tick_params(colors=MUTED, labelsize=8, length=2)
+    ax.tick_params(colors=MUTED, labelsize=8 * scale, length=2 * scale)
     ax.grid(axis="y", color=ROW_RULE, linewidth=0.6)
     ax.set_axisbelow(True)
     ax.axhline(0, color=ZERO, linewidth=0.8, zorder=1)
 
 
-def _panel_title(ax: Axes, left: str, right: str) -> None:
-    ax.set_title(left, loc="left", fontsize=10.5, fontweight="bold", color=ACCENT)
-    ax.set_title(right, loc="right", fontsize=9, color=MUTED)
+def _panel_title(ax: Axes, left: str, right: str, scale: float = 1.0) -> None:
+    ax.set_title(
+        left, loc="left", fontsize=10.5 * scale, fontweight="bold", color=ACCENT
+    )
+    ax.set_title(right, loc="right", fontsize=9 * scale, color=MUTED)
 
 
-def _value_label(ax: Axes, x: float, y: float, text: str, ha: str = "center") -> None:
+def _value_label(
+    ax: Axes, x: float, y: float, text: str, ha: str = "center", scale: float = 1.0
+) -> None:
     ax.annotate(
         text,
         (x, y),
-        xytext=({"left": 3, "right": -3}.get(ha, 0), 4 if y >= 0 else -4),
+        xytext=(
+            {"left": 3, "right": -3}.get(ha, 0) * scale,
+            (4 if y >= 0 else -4) * scale,
+        ),
         textcoords="offset points",
         ha=ha,
         va="bottom" if y >= 0 else "top",
-        fontsize=7.5,
+        fontsize=7.5 * scale,
         color=INK,
     )
 
@@ -96,11 +103,12 @@ def _signed_bars(
             )
 
 
-def _set_ylim_with_zero(ax: Axes, values: pd.Series) -> None:
+def _set_ylim_with_zero(ax: Axes, values: pd.Series, top_pad: float = 0.15) -> None:
+    """0 を含む範囲にする。top_pad は上側の余白 (値の幅に対する比率)。"""
     low = min(0.0, float(values.min()))
     high = max(0.0, float(values.max()))
-    pad = max((high - low) * 0.15, 1e-3)
-    ax.set_ylim(low - pad, high + pad)
+    span = max(high - low, 1e-3)
+    ax.set_ylim(low - span * 0.15, high + span * top_pad)
 
 
 def _date_ticks(ax: Axes, dates: pd.Index) -> None:
@@ -130,14 +138,18 @@ def draw_score_monitor(
     history_from_ymd: int | None = None,
     ma_window: int = MA_WINDOW,
     figsize: tuple[float, float] = FIGSIZE,
+    font_scale: float = 1.0,
 ) -> Figure:
     """1 種類のスコアの IC、TC、リバランス相関 (任意) を 1 枚の図にする。
 
     ic, tc, rebalance は index が YYYYMMDD の Series。日付は 3 つの和集合にそろえる。
     period_from_ymd から period_to_ymd を対象期間として網掛けする。
     表示は history_from_ymd (省略時はデータの先頭) から period_to_ymd まで。
-    IC の移動平均は、値がある日の直近 ma_window 日の平均とする。
+    IC の移動平均は、値がある日の直近 ma_window 日の平均とする。表示の開始より前の
+    値も使うので、表示の最初から移動平均を描ける。font_scale は文字の大きさの倍率で、
+    図をスライドに小さく貼るときに大きくする。
     """
+    k = font_scale
     if period_from_ymd > period_to_ymd:
         raise ValueError(
             f"period_from_ymd が period_to_ymd より後です: {period_from_ymd}-{period_to_ymd}"
@@ -166,32 +178,32 @@ def draw_score_monitor(
     fig = Figure(figsize=(width, height), facecolor=BG)
     fig.text(
         0.02,
-        1 - 0.28 / height,
+        1 - 0.22 * k / height,
         f"Period {format_ymd(period_dates[0])} – {format_ymd(period_dates[-1])} "
         f"({len(period_dates)} days)  |  History from {format_ymd(dates[0])}",
         color=MUTED,
-        fontsize=10,
+        fontsize=10 * k,
         va="center",
     )
     fig.text(
         0.02,
-        1 - 0.72 / height,
+        1 - 0.55 * k / height,
         title,
         color=ACCENT,
-        fontsize=12,
+        fontsize=12 * k,
         fontweight="bold",
         va="center",
     )
     fig.text(
         0.98,
-        1 - 0.72 / height,
+        1 - 0.55 * k / height,
         "Pearson correlation",
         color=MUTED,
-        fontsize=9,
+        fontsize=9 * k,
         ha="right",
         va="center",
     )
-    rule_y = 1 - 0.92 / height
+    rule_y = 1 - 0.75 * k / height
     fig.add_artist(
         Line2D(
             [0.02, 0.98],
@@ -207,17 +219,17 @@ def draw_score_monitor(
         len(ratios),
         1,
         height_ratios=ratios,
-        left=0.06,
+        left=0.06 * k,
         right=0.98
-        - LABEL_MARGIN / width,  # 右端の値のラベルが図からはみ出さないようにする
-        top=1 - 1.35 / height,
-        bottom=0.55 / height,
+        - LABEL_MARGIN * k / width,  # 右端の値のラベルが図からはみ出さないようにする
+        top=1 - 1.10 * k / height,
+        bottom=0.40 * k / height,
         hspace=0.55,
     )
     axes = [fig.add_subplot(grid[0])]
     axes += [fig.add_subplot(grid[i], sharex=axes[0]) for i in range(1, len(ratios))]
     for ax in axes:
-        _style_axes(ax)
+        _style_axes(ax, k)
         ax.axvspan(start - 0.5, x[-1] + 0.5, color=BAND, lw=0, zorder=0)
         ax.set_xlim(-0.6, len(dates) - 0.4)
 
@@ -225,16 +237,18 @@ def draw_score_monitor(
     ax = axes[0]
     ic_values = ic.reindex(dates).astype(float)
     _signed_bars(ax, x, ic_values, in_period)
-    moving = ic_values.dropna().rolling(ma_window, min_periods=ma_window).mean()
+    # 移動平均は表示の開始より前の値も使って計算する
+    history = ic[ic.index <= period_to_ymd].dropna().astype(float).sort_index()
+    moving = history.rolling(ma_window, min_periods=ma_window).mean()
     moving = moving.reindex(dates)
     ax.plot(x, moving.to_numpy(), color=ACCENT, linewidth=1.6, zorder=3)
     # 棒の間隔がラベルの幅より広ければ対象期間の全日、狭ければ最新日だけに値を書く
     labeled = np.flatnonzero(in_period & ic_values.notna().to_numpy())
     bar_spacing = (grid.right - grid.left) * width / len(dates)
-    if bar_spacing < LABEL_WIDTH:
+    if bar_spacing < LABEL_WIDTH * k:
         labeled = labeled[-1:]
     for i in labeled:
-        _value_label(ax, x[i], ic_values.iloc[i], f"{ic_values.iloc[i]:+.2f}")
+        _value_label(ax, x[i], ic_values.iloc[i], f"{ic_values.iloc[i]:+.2f}", scale=k)
     _set_ylim_with_zero(ax, ic_values.dropna())
     last_ma = moving.dropna()
     _panel_title(
@@ -244,6 +258,7 @@ def draw_score_monitor(
         f"Latest {ma_window}-day mean "
         f"{(last_ma.iloc[-1] if len(last_ma) else np.nan):+.3f}   |   "
         f"Mean since {format_ymd(dates[0])} {ic_values.mean():+.3f}",
+        k,
     )
 
     # TC: 日次の線。対象期間の最初と最後に値を書く
@@ -259,12 +274,12 @@ def draw_score_monitor(
                 [x[i]],
                 [value],
                 marker="D",
-                s=22,
+                s=22 * k**2,
                 zorder=4,
                 color=UP if value >= 0 else DN,
             )
-            _value_label(ax, x[i], value, f"{value:+.3f}", ha)
-        _set_ylim_with_zero(ax, tc_values.dropna())
+            _value_label(ax, x[i], value, f"{value:+.3f}", ha, k)
+        _set_ylim_with_zero(ax, tc_values.dropna(), top_pad=0.45)  # 値のラベルの分
         period_tc = tc_values[in_period].dropna()
         right = (
             f"Period {period_tc.iloc[0]:+.3f} → {period_tc.iloc[-1]:+.3f}"
@@ -273,7 +288,7 @@ def draw_score_monitor(
         )
     else:
         right = "No value"
-    _panel_title(ax, "TC  (active weight vs score)", right)
+    _panel_title(ax, "TC  (active weight vs score)", right, k)
 
     # リバランス相関: 日次の棒。対象期間の最初と最後に値を書く
     if rebalance is not None:
@@ -283,9 +298,9 @@ def draw_score_monitor(
         marks = np.flatnonzero(in_period & reb_values.notna().to_numpy())
         for i, ha in _edge_marks(marks):
             value = reb_values.iloc[i]
-            _value_label(ax, x[i], value, f"{value:.3f}", ha)
+            _value_label(ax, x[i], value, f"{value:.3f}", ha, k)
         if reb_values.notna().any():
-            _set_ylim_with_zero(ax, reb_values.dropna())
+            _set_ylim_with_zero(ax, reb_values.dropna(), top_pad=0.35)
         reb_date = rebalance.dropna().index.min()
         _panel_title(
             ax,
@@ -293,6 +308,7 @@ def draw_score_monitor(
             f"Latest {reb_values.dropna().iloc[-1]:.3f}"
             if reb_values.notna().any()
             else "",
+            k,
         )
 
     for ax in axes[:-1]:

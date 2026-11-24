@@ -43,6 +43,8 @@ class FactorConfig(CliConfig):
     reb_ymd: int | None = None
     period_from_ymd: int | None = None
     period_to_ymd: int | None = None
+    ic_from_ymd: int | None = None
+    ic_font_scale: float = 1.5
 
 
 def main(
@@ -82,7 +84,13 @@ def main(
     figure_dir = processed_dir(output_date, "factor", "figures")
     clear_files(figure_dir)
     outputs = draw_factor_figures(
-        results, to_ymd(period_from), to_ymd(period_to), figure_dir, log=echo
+        results,
+        to_ymd(period_from),
+        to_ymd(period_to),
+        figure_dir,
+        log=echo,
+        ic_from=cfg.ic_from_ymd,
+        ic_font_scale=cfg.ic_font_scale,
     )
     typer.echo(f"Saved {len(outputs)} files to {figure_dir}")
 

@@ -173,10 +173,15 @@ def draw_factor_figures(
     period_to: int,
     output_dir: Path,
     log: Callable[[str], None] = print,
+    *,
+    ic_from: int | None = None,
+    ic_font_scale: float = 1.0,
 ) -> list[Path]:
     """ファクターの図 (PNG) を output_dir に出力し、出力したファイルのパスを返す。
 
     period_from から period_to を対象期間として強調し、推移は計算期間の最初から描く。
+    IC・TC・リバランス相関の図は ic_from (省略時は計算期間の最初) から描き、
+    文字の大きさを ic_font_scale 倍にする。
     """
     r = results
     period = (period_from, period_to)
@@ -184,6 +189,12 @@ def draw_factor_figures(
         raise ValueError(
             f"計算期間 ({r.from_ymd}-{r.to_ymd}) に対象期間 "
             f"({period_from}-{period_to}) が含まれていません"
+        )
+    ic_from = r.from_ymd if ic_from is None else ic_from
+    if not r.from_ymd <= ic_from <= period_from:
+        raise ValueError(
+            f"ic_from ({ic_from}) は計算期間の最初 ({r.from_ymd}) から"
+            f"対象期間の最初 ({period_from}) までの日にしてください"
         )
     figures = {
         "11_factor_common_groups.png": draw_common_factor_groups(
@@ -211,7 +222,8 @@ def draw_factor_figures(
             *period,
             title=f"{NAM_LABELS[column]} score",
             rebalance=None if r.rebalance is None else r.rebalance[column],
-            history_from_ymd=r.from_ymd,
+            history_from_ymd=ic_from,
+            font_scale=ic_font_scale,
         )
 
     paths = []

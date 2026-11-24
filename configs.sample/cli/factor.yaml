@@ -11,3 +11,5 @@ score_freq: monthly    # NAM のスコア: monthly (直近の月末) / daily (�
 reb_ymd: null          # リバランス日。この日以降の日次スコアでリバランス相関を計算する。null なら計算しない
 period_from_ymd: null  # 図で強調する期間の最初の日 (output_ymd の前日を終点とする 1 週間)
 period_to_ymd: null    # 図で強調する期間の最後の日 (output_ymd の前日)
+ic_from_ymd: null      # IC・TC・リバランス相関の図を描き始める日 (from_ymd)。20 日移動平均はこれより前の値も使う
+ic_font_scale: 1.5     # IC・TC・リバランス相関の図の文字の倍率

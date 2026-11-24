@@ -31,13 +31,13 @@ slides:
     images: [13_factor_nam_specific.png]
   - slide: 12
     images: [14_score_monitor_ai.png]
-    frame: [0.67, 1.09, 9.73, 5.51]   # スライド 11 (NAM Srtn) と同じ大きさ
+    frame: [0.2, 0.92, 10.43, 5.87]   # タイトルの下からコメント欄の上まで (16:9)
   - slide: 13
     images: [14_score_monitor_bd.png]
-    frame: [0.67, 1.09, 9.73, 5.51]   # スライド 11 (NAM Srtn) と同じ大きさ
+    frame: [0.2, 0.92, 10.43, 5.87]   # タイトルの下からコメント欄の上まで (16:9)
   - slide: 14
     images: [14_score_monitor_ai70_bd30.png]
-    frame: [0.67, 1.09, 9.73, 5.51]   # スライド 11 (NAM Srtn) と同じ大きさ
+    frame: [0.2, 0.92, 10.43, 5.87]   # タイトルの下からコメント欄の上まで (16:9)
   # 経済指標・決算
   - slides: [15, 16]
     pages: "09_econ_calendar_*.png"
