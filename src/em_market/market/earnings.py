@@ -6,7 +6,7 @@ import pandas as pd
 
 from em_market.market.client import LSEGClient
 from em_market.market.labels import COUNTRY_JA, GICS_SECTOR_JA, to_ja
-from em_market.paths import REFERENCE_DIR
+from em_market.paths import RAW_DIR
 
 # 次回: I/B/E/S の予定日（FI1 = 次の決算。中間・四半期を含む）
 # 直近: ファンダメンタルの実際の発表日（FI0 = 直近の決算）。
@@ -29,14 +29,25 @@ DATE_COLUMNS = [
 ]
 
 
-def load_benchmark(path: Path = REFERENCE_DIR / "bm.csv") -> pd.DataFrame:
-    """ベンチマーク構成銘柄を読み込む。
+def load_benchmark(
+    as_of: str | date | pd.Timestamp | None = None, raw_dir: Path = RAW_DIR
+) -> pd.DataFrame:
+    """ベンチマーク構成銘柄 (sedol, isin, name, weight, bid) を読み込む。
 
-    CSV の weight は "0.10%" と小数第2位で丸められているため、
-    cap 比率から計算し直す（丸め後の値とは ±0.005% 以内で一致）。
+    data/raw/bm/ のうち、as_of 以前 (省略時は全体) で最も新しい日のファイルを使う。
+    weight は合計が 1 になるようにそろえる。読み込んだ日は attrs["date"] に入れる。
     """
-    bm = pd.read_csv(path, dtype={"sedol": str}, encoding="utf-8-sig")
-    bm["weight"] = bm["cap"] / bm["cap"].sum()
+    days = sorted(int(p.stem) for p in (Path(raw_dir) / "bm").glob("*.csv"))
+    if as_of is not None:
+        days = [d for d in days if d <= int(f"{pd.Timestamp(as_of):%Y%m%d}")]
+    if not days:
+        raise FileNotFoundError(
+            f"{Path(raw_dir) / 'bm'} に {as_of} 以前の BM がありません"
+        )
+
+    bm = pd.read_csv(Path(raw_dir) / "bm" / f"{days[-1]}.csv", dtype={"sedol": str})
+    bm["weight"] = bm["weight"] / bm["weight"].sum()
+    bm.attrs["date"] = days[-1]
     return bm
 
 
@@ -110,13 +121,14 @@ def earnings_in_window(
     # 発表直後は次回予定日がまだ更新されず実績と重なることがあるので、同一銘柄・同日は1件にする
     in_window = in_window.drop_duplicates(subset=["sedol", "date"], keep="last")
 
+    # cap (時価総額) は BM にあるときだけ。ない場合は欠損の列になる
+    bm_columns = [c for c in ["sedol", "isin", "name", "weight", "cap"] if c in bm]
     return (
-        in_window.merge(
-            bm[["sedol", "isin", "name", "weight", "cap"]], on="sedol", how="left"
-        )
+        in_window.merge(bm[bm_columns], on="sedol", how="left")
         .sort_values(["date", "weight"], ascending=[True, False])
-        .reset_index(drop=True)[
-            [
+        .reset_index(drop=True)
+        .reindex(
+            columns=[
                 "date",
                 "event",
                 "name",
@@ -130,7 +142,7 @@ def earnings_in_window(
                 "sedol",
                 "isin",
             ]
-        ]
+        )
     )
 
 

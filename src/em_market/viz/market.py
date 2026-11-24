@@ -384,6 +384,8 @@ def plot_earnings_table(
         "cap": ("cap (bn)", 0.92, "right"),
         "period_end": ("決算期", 1.0, "right"),
     }
+    if not calendar["cap"].notna().any():  # BM に時価総額がなければ列を出さない
+        del cols["cap"]
     bar_x, bar_w = 0.775, 0.075
 
     figs = []
@@ -455,12 +457,14 @@ def plot_earnings_table(
                 "country": "" if pd.isna(row["country"]) else row["country"],
                 "sector": "" if pd.isna(row["sector"]) else row["sector"],
                 "weight": f"{row['weight']:.2%}",
-                "cap": f"{row['cap'] / 1e9:,.2f}",
+                "cap": "" if pd.isna(row["cap"]) else f"{row['cap'] / 1e9:,.2f}",
                 "period_end": ""
                 if pd.isna(row["period_end"])
                 else f"{row['period_end']:%Y/%m}",
             }
             for key, text in cells.items():
+                if key not in cols:
+                    continue
                 _, x, ha = cols[key]
                 ax.text(x, yc, text, ha=ha, va="center", fontsize=11.5)
             ax.add_patch(

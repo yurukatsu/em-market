@@ -49,12 +49,12 @@ configs/
   weekly_slides.yaml       パワポに差し込む図の対応
   factor_performance.yaml  ファクターのスコアの種類、リバランス日
 data/                      (git 管理外)
-  raw/                     社内データ (ai, bd, bm, port, rtn, srtn, common, calendar.csv)
+  raw/                     社内データ (ai, bd, bm, port, rtn, srtn, common, calendar.csv)。
+                           週次レポートの BM も bm/ のうちレポートの日付以前で最新の日を使う
   processed/<日付>/
     market/                LSEG から取得した市況データ (CSV)
     factor/                ファクターのリターン、IC・TC (CSV) と期間など (meta.json)
     report/                図 (PNG)、表 (CSV)、パワポ
-  reference/bm.csv         週次レポート用のベンチマーク構成銘柄 (sedol, isin, name, cap, weight)
   lseg/                    lseg-history で取得した時系列
 templates/example.pptx     週次レポートのパワポのテンプレート (git 管理外)
 notebooks/                 factor_performance.ipynb (ファクター分析)、weekly_report_sample.ipynb (週次レポート)

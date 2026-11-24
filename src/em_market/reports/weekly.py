@@ -168,7 +168,8 @@ class WeeklyReport:
         self.earnings_end = self.base_date + pd.Timedelta(days=cfg.earnings_days - 1)
         self.period_label = f"{self.return_start:%Y/%m/%d}～{self.return_end:%Y/%m/%d}"
         self.universe = load_universe()
-        self.bm = load_benchmark()
+        # BM は data/raw/bm のうち基準日以前で最も新しい日のもの
+        self.bm = load_benchmark(as_of=self.base_date)
         self.outputs: list[Path] = []
 
     # ---- 出力 ----------------------------------------------------------------
@@ -324,13 +325,17 @@ class WeeklyReport:
         self._png(fig, "03_earnings_counts.png")
 
         calendar = earnings_in_window(dates, bm, self.base_date, days=cfg.earnings_days)
-        calendar = calendar[
-            (calendar["weight"] >= cfg.min_weight) & (calendar["cap"] >= cfg.min_cap)
-        ]
+        calendar = calendar[calendar["weight"] >= cfg.min_weight]
+        # cap は BM に時価総額があるときだけ使える (data/raw/bm にはない)
+        use_cap = cfg.min_cap > 0 and calendar["cap"].notna().any()
+        if cfg.min_cap > 0 and not use_cap:
+            self.log("BM に時価総額 (cap) がないので min_cap の絞り込みはしません")
+        if use_cap:
+            calendar = calendar[calendar["cap"] >= cfg.min_cap]
         self._csv(calendar, "04_earnings_calendar.csv")
         filters = "".join(
             [f"｜weight ≥ {cfg.min_weight:.2%}"] * (cfg.min_weight > 0)
-            + [f"｜cap ≥ {cfg.min_cap / 1e9:,.1f}bn"] * (cfg.min_cap > 0)
+            + [f"｜cap ≥ {cfg.min_cap / 1e9:,.1f}bn"] * use_cap
         )
         window = f"{self.base_date:%Y/%m/%d}～{self.earnings_end:%m/%d}"
         figs = plot_earnings_table(

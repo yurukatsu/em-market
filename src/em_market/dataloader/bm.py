@@ -10,7 +10,11 @@ def get_rga_weight(ymd: int | str, sedol_convert: bool = True) -> pd.DataFrame:
     sql = """
         SELECT calc_date AS dateymd,
             SEDOL_Code AS sedol,
-            Index_Weight as weight
+            ISIN_Code AS isin,
+            Constituent_Name AS name,
+            Index_Weight as weight,
+            Region AS region,
+            Adjusted_Market_Capitalisation AS cap
         from dbo.SGX_Constituent
         WHERE calc_date = :ymd
         AND Index_Symbol = 'RGAEEMLN'
