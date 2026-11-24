@@ -38,7 +38,7 @@ COLORS = {
     "negative": DN,
     "benchmark": ACCENT,
     "bar": UP,
-    "bar_muted": "#95ADCC",  # プラスの色を背景に 40% で重ねた色
+    "bar_muted": "#A5BDDB",  # プラスの色を白地に 40% で重ねた色
     "text": INK,
     "text_secondary": MUTED,
     "text_muted": SUBTLE,
@@ -218,12 +218,13 @@ def plot_period_chart(
     subtitle: str | None = None,
     benchmark: str | None = None,
     name_header: str = "Name",
+    font_scale: float = 1.0,
 ) -> Figure:
     """価格の時系列 (列が銘柄、index が日付) から、期間の累積リターンをファクターの図と同じ形で描く。
 
     列は名前、Period (累積リターンの推移)、Chg Bar、Chg %。start 時点の価格 (当日または直前の値)
     を基準に、start より後から end までの各日の累積リターン (%, 複利) を描く。休場日は直前の値を
-    引き継ぐ。benchmark の行は太字で先頭に置く。
+    引き継ぐ。benchmark の行は太字で先頭に置く。font_scale は文字の大きさの倍率。
     """
     start, end = pd.Timestamp(start), pd.Timestamp(end)
     prices = prices.sort_index().ffill()
@@ -248,6 +249,7 @@ def plot_period_chart(
         pinned=[benchmark] if benchmark else [],
         name_header=name_header,
         subtitle=subtitle,
+        font_scale=font_scale,
     )
 
 

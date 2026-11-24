@@ -22,8 +22,8 @@ from em_market.dates import ScoreFreq
 from em_market.viz.style import (
     ACCENT,
     BAND,
+    BG,
     DN,
-    FACTOR_BG,
     FIGSIZE,
     GRID,
     INK,
@@ -109,13 +109,19 @@ class _Canvas:
         height: float,
         row_h: float,
         columns: dict[str, tuple[float, float]],
+        font_scale: float = 1.0,
     ) -> None:
         self.fig = fig
+        self.font_scale = font_scale  # 文字の大きさの倍率
+        # 見出しの高さは文字に合わせて広げる
+        self.title_h = TITLE_H * font_scale
+        self.section_h = SECTION_H * font_scale
+        self.header_h = HEADER_H * font_scale
         self.height = height
         self.row_h = row_h
         self.axes_h = row_h * (1 - 2 * ROW_PAD_RATIO)  # 行内のグラフの高さ
         self.columns = columns
-        self.y = TITLE_H
+        self.y = self.title_h
 
     def axes(self, column: str) -> Axes:
         x0, x1 = self.columns[column]
@@ -125,6 +131,9 @@ class _Canvas:
         return ax
 
     def text(self, x: float, offset: float, text: str, **kwargs) -> None:
+        """行の上端から offset インチの位置に書く。fontsize には font_scale を掛ける。"""
+        if "fontsize" in kwargs:
+            kwargs["fontsize"] *= self.font_scale
         self.fig.text(
             x, 1 - (self.y + offset) / self.height, text, va="center", **kwargs
         )
@@ -176,13 +185,20 @@ def _draw_section_header(
 ) -> None:
     columns = canvas.columns
     canvas.text(
-        0.02, SECTION_H * 0.55, title, color=ACCENT, fontsize=12, fontweight="bold"
+        0.02,
+        canvas.section_h * 0.55,
+        title,
+        color=ACCENT,
+        fontsize=12,
+        fontweight="bold",
     )
-    canvas.text(0.98, SECTION_H * 0.55, unit, color=MUTED, fontsize=9, ha="right")
-    canvas.y += SECTION_H
+    canvas.text(
+        0.98, canvas.section_h * 0.55, unit, color=MUTED, fontsize=9, ha="right"
+    )
+    canvas.y += canvas.section_h
     canvas.rule(ACCENT, 0.8)
 
-    center = HEADER_H / 2
+    center = canvas.header_h / 2
     header = {"color": ACCENT, "fontsize": 9, "fontweight": "bold"}
     canvas.text(columns["name"][0], center, name_header, **header)
     if "history" in columns:
@@ -210,7 +226,7 @@ def _draw_section_header(
     if "exp" in columns:
         exp_center = (columns["exp_bar"][0] + columns["exp"][1]) / 2
         canvas.text(exp_center, center, "Active Exp.", ha="center", **header)
-    canvas.y += HEADER_H
+    canvas.y += canvas.header_h
     canvas.rule()
 
 
@@ -356,6 +372,7 @@ def draw_factor_chart(
     name_header: str = "Name",
     subtitle: str | None = None,
     figsize: tuple[float, float] = FIGSIZE,
+    font_scale: float = 1.0,
 ) -> Figure:
     """1 種類のファクターリターン (列がファクター、index が YYYYMMDD) を 1 枚の図にする。
 
@@ -369,7 +386,8 @@ def draw_factor_chart(
     期間の表示に続けて書く。show_history=False なら Cumulative の列を省く。
     pinned の行は太字で先頭に置く。name_header は名前の列の見出し、subtitle は
     図の最上部の 1 行 (省略時は期間を書く)。figsize (インチ) は既定で 16:9 の
-    スライド全面に合わせ、行の高さは行数から決める。
+    スライド全面に合わせ、行の高さは行数から決める。font_scale は文字の大きさの倍率で、
+    図をスライドに小さく貼るときに大きくする。
     """
     if exposures is not None and not show_history:
         raise ValueError("exposures と show_history=False は同時に指定できません")
@@ -405,7 +423,8 @@ def draw_factor_chart(
         )
 
     width, height = figsize
-    row_h = (height - TITLE_H - SECTION_H - HEADER_H - BOTTOM_H) / data.shape[1]
+    head_h = (TITLE_H + SECTION_H + HEADER_H) * font_scale
+    row_h = (height - head_h - BOTTOM_H) / data.shape[1]
     if row_h <= 0:
         raise ValueError(f"figsize の高さが足りません: {figsize}")
     if exposures is not None:
@@ -414,8 +433,8 @@ def draw_factor_chart(
         columns = COLUMNS
     else:
         columns = COLUMNS_PERIOD_ONLY
-    fig = Figure(figsize=(width, height), facecolor=FACTOR_BG)
-    canvas = _Canvas(fig, height, row_h, columns)
+    fig = Figure(figsize=(width, height), facecolor=BG)
+    canvas = _Canvas(fig, height, row_h, columns, font_scale)
 
     if subtitle is None:
         subtitle = (
@@ -426,7 +445,14 @@ def draw_factor_chart(
             subtitle += f"  |  History from {_format_ymd(data.index[0])}"
         if exposure_note:
             subtitle += f"  |  {exposure_note}"
-    fig.text(0.02, 1 - 0.28 / height, subtitle, color=MUTED, fontsize=10, va="center")
+    fig.text(
+        0.02,
+        1 - 0.28 * font_scale / height,
+        subtitle,
+        color=MUTED,
+        fontsize=10 * font_scale,
+        va="center",
+    )
     _draw_section(
         canvas,
         title,

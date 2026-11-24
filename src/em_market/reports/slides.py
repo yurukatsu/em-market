@@ -1,6 +1,7 @@
 """パワポのテンプレートに図（PNG）を差し込む。
 
-テンプレート上の既存の図を、位置・大きさを保ったまま新しい PNG に置き換える。
+テンプレート上の既存の図を、位置・大きさを保ったまま新しい PNG に置き換える
+(frame を指定したスライドは、その位置・大きさにする)。
 どのスライドのどの図にどの PNG を入れるかは configs/weekly_slides.yaml で指定する。
 """
 
@@ -17,6 +18,7 @@ from pptx.oxml.ns import qn
 from pptx.presentation import Presentation as PresentationType
 from pptx.shapes.picture import Picture
 from pptx.slide import Slide
+from pptx.util import Inches
 from pydantic import BaseModel, model_validator
 
 from em_market.paths import CONFIG_DIR, PROJECT_ROOT
@@ -29,15 +31,23 @@ R_NS = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
 
 class SlideSpec(BaseModel):
     """1枚のスライドに固定の図を入れる（slide + images）か、
-    複数ページの図をスライドの範囲に入れる（slides + pages）。"""
+    複数ページの図をスライドの範囲に入れる（slides + pages）。
+
+    frame: 図の位置と大きさ [左, 上, 幅, 高さ]（インチ）。省略時はテンプレートの図のまま。
+        図が 1 つのスライドだけで使える。"""
 
     slide: int | None = None
     images: list[str] = []
     slides: tuple[int, int] | None = None
     pages: str | None = None
+    frame: tuple[float, float, float, float] | None = None
 
     @model_validator(mode="after")
     def _check(self) -> "SlideSpec":
+        if self.frame is not None and len(self.images) > 1:
+            raise ValueError(
+                f"frame は図が 1 つのスライドだけで使えます: {self.images}"
+            )
         if (
             self.slide is not None
             and self.images
@@ -184,12 +194,20 @@ def delete_slide(prs: PresentationType, index: int) -> None:
 # ---- テンプレートへの差し込み ------------------------------------------------------
 
 
-def _fill(slide: Slide, number: int, images: list[Path]) -> None:
+def _fill(
+    slide: Slide,
+    number: int,
+    images: list[Path],
+    frame: tuple[float, float, float, float] | None = None,
+) -> None:
     pics = pictures(slide)
     if len(pics) != len(images):
         raise ValueError(
             f"スライド {number}: 図が {len(pics)} 個ありますが、差し込む画像は {len(images)} 枚です"
         )
+    if frame is not None:
+        pic = pics[0]
+        pic.left, pic.top, pic.width, pic.height = (Inches(v) for v in frame)
     for pic, path in zip(pics, images, strict=True):
         replace_picture(slide, pic, path)
 
@@ -238,7 +256,7 @@ def build_slides(
                     f"警告: スライド {spec.slide}: 画像がないのでテンプレートのまま残します: {missing}"
                 )
                 continue
-            _fill(prs.slides[spec.slide - 1], spec.slide, paths)
+            _fill(prs.slides[spec.slide - 1], spec.slide, paths, spec.frame)
             continue
 
         pages = glob(spec.pages)
@@ -251,7 +269,7 @@ def build_slides(
         for _ in range(n_template - len(pages)):
             delete_slide(prs, first - 1 + len(pages))
         for k, path in enumerate(pages):
-            _fill(prs.slides[first - 1 + k], first + k, [path])
+            _fill(prs.slides[first - 1 + k], first + k, [path], spec.frame)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(output_path))

@@ -19,8 +19,8 @@ from matplotlib.lines import Line2D
 from em_market.viz.style import (
     ACCENT,
     BAND,
+    BG,
     DN,
-    FACTOR_BG,
     FIGSIZE,
     GRID,
     INK,
@@ -163,7 +163,7 @@ def draw_score_monitor(
     start = int(np.argmax(in_period))
 
     width, height = figsize
-    fig = Figure(figsize=(width, height), facecolor=FACTOR_BG)
+    fig = Figure(figsize=(width, height), facecolor=BG)
     fig.text(
         0.02,
         1 - 0.28 / height,

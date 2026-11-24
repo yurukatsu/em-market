@@ -10,6 +10,7 @@ output_name: "EM週次市況_{date:%Y%m%d}.pptx"   # 保存先は data/processed
 #                   図の数と images の数は一致させる
 #   slides + pages: 複数ページの図（ファイル名のパターン）を [最初, 最後] のスライドに1枚ずつ入れる。
 #                   ページ数が多ければ最後のスライドを複製し、少なければ余ったスライドを削除する
+#   frame: 図の位置と大きさ [左, 上, 幅, 高さ]（インチ）。省略時はテンプレートの図のまま。図が 1 つのスライドだけで使える
 slides:
   - slide: 3
     images: [06_us_yield_curve.png, 07_commodities.png]
@@ -30,10 +31,13 @@ slides:
     images: [13_factor_nam_specific.png]
   - slide: 12
     images: [14_score_monitor_ai.png]
+    frame: [0.67, 1.09, 9.73, 5.51]   # スライド 11 (NAM Srtn) と同じ大きさ
   - slide: 13
     images: [14_score_monitor_bd.png]
+    frame: [0.67, 1.09, 9.73, 5.51]   # スライド 11 (NAM Srtn) と同じ大きさ
   - slide: 14
     images: [14_score_monitor_ai70_bd30.png]
+    frame: [0.67, 1.09, 9.73, 5.51]   # スライド 11 (NAM Srtn) と同じ大きさ
   # 経済指標・決算
   - slides: [15, 16]
     pages: "09_econ_calendar_*.png"

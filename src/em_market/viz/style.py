@@ -12,8 +12,7 @@ from matplotlib import font_manager
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection
 
-BG = "#E5E5E5"  # 背景 (グレー)。市況の図
-FACTOR_BG = "#FFFFFF"  # ファクターの図の背景 (白)
+BG = "#FFFFFF"  # 背景 (白)
 ACCENT = "#3C3C3C"  # 強調色 (濃いグレー): タイトル、見出し、区切り線
 BAND = "#C4C4C4"  # 対象期間の網掛け
 STRIPE = "#D9D9D9"  # 表の縞、控えめな強調

@@ -67,6 +67,7 @@ class WeeklyReportConfig(BaseModel):
     commodity_months: int = 3
     econ_days: int = 7
     treemap_clip: float = 0.05
+    index_font_scale: float = 1.8
     table_rows_per_page: int = 18
 
     @classmethod
@@ -304,6 +305,7 @@ class WeeklyReport:
             subtitle=self.period_label,
             benchmark=cfg.benchmark if usd else None,
             name_header="国",
+            font_scale=cfg.index_font_scale,
         )
         self._png(fig, "01_country_returns.png")
 
@@ -316,6 +318,7 @@ class WeeklyReport:
             subtitle=self.period_label,
             benchmark=cfg.benchmark,
             name_header="セクター",
+            font_scale=cfg.index_font_scale,
         )
         self._png(fig, "02_sector_returns.png")
         self._csv(
