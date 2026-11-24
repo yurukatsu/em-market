@@ -4,8 +4,6 @@
 対象期間のバーを並べる。累積はいずれも日次リターン (%) の単純和とする。
 """
 
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
@@ -13,11 +11,7 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
 from em_market.const import COMMON_FACTOR, COMMON_FACTOR_CATEGORY_MAP
-from em_market.factor.common import (
-    calc_common_factor_returns,
-    calc_common_group_returns,
-)
-from em_market.factor.nam import ScoreFreq, calc_nam_factor_returns
+from em_market.dates import ScoreFreq
 
 BG, FG, GRID = "#000000", "#FFA028", "#333333"
 UP, DN = "#4AF626", "#FF433D"
@@ -47,7 +41,6 @@ ROW_H: float = 0.30
 SECTION_GAP: float = 0.14
 FOOTER_H: float = 0.66
 ROW_PAD: float = 0.035
-DPI: int = 150
 
 NAM_LABELS: dict[str, str] = {
     "ai": "AI",
@@ -392,43 +385,4 @@ def draw_factor_monitor(
         color=MUTED,
         fontsize=8,
     )
-    return fig
-
-
-def plot_factor_monitor(
-    from_ymd: int,
-    to_ymd: int,
-    *,
-    history_from: int | None = None,
-    raw_dir: str | Path = "data/raw",
-    score_freq: ScoreFreq = "monthly",
-    out: str | Path | None = None,
-) -> Figure:
-    """data/raw からリターンを算出して図を作り、out を指定した場合は保存する。
-
-    history_from を省略した場合、推移は to_ymd の年の 1 月 1 日から表示する。
-    対象期間がそれより前に始まる場合は from_ymd から表示する。
-    """
-    if from_ymd > to_ymd:
-        raise ValueError(f"from_ymd が to_ymd より後です: {from_ymd}-{to_ymd}")
-    if history_from is None:
-        history_from = min(from_ymd, to_ymd // 10000 * 10000 + 101)
-    if history_from > from_ymd:
-        raise ValueError(
-            f"history_from が from_ymd より後です: {history_from} > {from_ymd}"
-        )
-
-    nam_returns = calc_nam_factor_returns(
-        history_from, to_ymd, raw_dir=raw_dir, score_freq=score_freq
-    )
-    factor_returns = calc_common_factor_returns(history_from, to_ymd, raw_dir=raw_dir)
-    group_returns = calc_common_group_returns(factor_returns)
-
-    fig = draw_factor_monitor(
-        nam_returns, group_returns, from_ymd, to_ymd, score_freq=score_freq
-    )
-    if out is not None:
-        out = Path(out)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out, dpi=DPI, facecolor=BG)
     return fig

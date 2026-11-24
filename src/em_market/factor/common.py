@@ -1,33 +1,22 @@
-"""common ファクターのファクターリターンを data/raw の CSV から算出する。
+"""ユニバース、日次リターン、月次ファクターから common ファクターのリターンを算出する。
 
-各基準日について、当日の AI スコアの銘柄をユニバースとし、前月の月次ファクターを
-正規スコアに変換する。ファクターごとに当日の USD リターンを単回帰し、その傾きを
-ファクターリターンとする。
+各基準日について、当日のユニバースの銘柄で前月の月次ファクターを正規スコアに変換する。
+ファクターごとに当日の USD リターンを単回帰し、その傾きをファクターリターンとする。
 """
 
 import warnings
+from collections.abc import Mapping
 from functools import cache
-from pathlib import Path
 from statistics import NormalDist
 
 import numpy as np
 import pandas as pd
 
-from em_market.const import (
-    COMMON_FACTOR,
-    COMMON_FACTOR_CATEGORIES,
-    COMMON_FACTOR_CATEGORY_MAP,
-)
+from em_market.const import COMMON_FACTOR_CATEGORIES, COMMON_FACTOR_CATEGORY_MAP
+from em_market.dates import previous_ym
 
 MISSING_THRESHOLD: float = -100.0  # これ以下のファクター値は欠損として扱う
-MAX_ABS_RTN: float = 100.0  # これ以上の絶対値 (%) はデータエラーとして除外する
 BLOM_ALPHA: float = 3 / 8
-
-
-def previous_ym(ymd: int) -> int:
-    """基準日の前月を YYYYMM で返す。"""
-    year, month = divmod(ymd // 100, 100)
-    return (year - 1) * 100 + 12 if month == 1 else year * 100 + month - 1
 
 
 @cache
@@ -51,22 +40,6 @@ def blom_score(values: pd.DataFrame) -> pd.DataFrame:
             index = np.rint(2 * ranks[valid, j]).astype(int)
             scores[valid, j] = _blom_table(n)[index]
     return pd.DataFrame(scores, index=values.index, columns=values.columns)
-
-
-def load_monthly_factors(raw_dir: Path, ym: int) -> pd.DataFrame | None:
-    """月次ファクターを bid を index にして返す。ファイルがない・空の場合は None。"""
-    path = raw_dir / "common" / f"{ym}.csv"
-    if not path.exists():
-        return None
-
-    factors = pd.read_csv(
-        path,
-        usecols=["bid", *COMMON_FACTOR],
-        dtype={factor: "float64" for factor in COMMON_FACTOR},
-    )
-    if factors.empty:
-        return None
-    return factors.set_index("bid")[COMMON_FACTOR]
 
 
 def make_exposures(factors: pd.DataFrame, universe: pd.Index) -> pd.DataFrame:
@@ -106,47 +79,42 @@ def calc_slopes(exposures: pd.DataFrame, returns: pd.Series) -> pd.Series:
 
 
 def calc_common_factor_returns(
-    from_ymd: int,
-    to_ymd: int,
-    *,
-    raw_dir: str | Path = "data/raw",
+    universe: pd.DataFrame,
+    returns: pd.DataFrame,
+    monthly_factors: Mapping[int, pd.DataFrame],
 ) -> pd.DataFrame:
-    """common ファクターの日次リターン (スコア 1 標準偏差あたりの %) を返す。"""
-    raw_dir = Path(raw_dir)
-    calendar = pd.read_csv(raw_dir / "calendar.csv")
-    ymds = calendar.loc[calendar["dateymd"].between(from_ymd, to_ymd), "dateymd"]
+    """common ファクターの日次リターン (スコア 1 標準偏差あたりの %) を返す。
 
-    monthly_factors: dict[int, pd.DataFrame | None] = {}
+    universe: ymd, bid を持つ各日のユニバース。
+    returns: ymd, bid, rtn を持つ日次リターン。
+    monthly_factors: YYYYMM → 月次ファクター (bid が index)。
+
+    ユニバース、リターン、前月のファクターのいずれかがない日は除外する。
+    """
+    universes = {
+        int(ymd): pd.Index(bids) for ymd, bids in universe.groupby("ymd")["bid"]
+    }
+    daily_returns = {
+        int(ymd): day.set_index("bid")["rtn"] for ymd, day in returns.groupby("ymd")
+    }
+
     results: dict[int, pd.Series] = {}
     skipped: list[int] = []
-
-    for ymd in ymds.tolist():
-        factor_ym = previous_ym(ymd)
-        if factor_ym not in monthly_factors:
-            monthly_factors[factor_ym] = load_monthly_factors(raw_dir, factor_ym)
-        factors = monthly_factors[factor_ym]
-
-        ai_path = raw_dir / "ai" / f"{ymd}.csv"
-        rtn_path = raw_dir / "rtn" / f"{ymd}.csv"
-        if factors is None or not ai_path.exists() or not rtn_path.exists():
+    for ymd in sorted(universes.keys() | daily_returns.keys()):
+        factors = monthly_factors.get(previous_ym(ymd))
+        if factors is None or ymd not in universes or ymd not in daily_returns:
             skipped.append(ymd)
             continue
-
-        universe = pd.Index(pd.read_csv(ai_path, usecols=["bid"])["bid"].dropna())
-        returns = (
-            pd.read_csv(rtn_path, usecols=["bid", "rtn"])
-            .dropna()
-            .query("abs(rtn) < @MAX_ABS_RTN")
-            .set_index("bid")["rtn"]
+        results[ymd] = calc_slopes(
+            make_exposures(factors, universes[ymd]), daily_returns[ymd]
         )
-        results[ymd] = calc_slopes(make_exposures(factors, universe), returns)
 
     if skipped:
         warnings.warn(f"データがないため該当する基準日を除外します: {skipped}")
     if not results:
-        raise ValueError(f"対象期間に計算できる日がありません: {from_ymd}-{to_ymd}")
+        raise ValueError("計算できる日がありません")
 
-    result = pd.DataFrame(results).T[COMMON_FACTOR]
+    result = pd.DataFrame(results).T
     result.index.name = "date"
     return result
 
